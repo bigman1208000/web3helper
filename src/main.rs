@@ -53,7 +53,7 @@ async fn main() -> web3::Result<()> {
     let router_instance: Contract<Http> = web3m.instance_contract(router_address, router_abi).await;
 
     // call example
-    let account = web3m.get_account();
+    let account = web3m.get_first_loaded_account();
     let balance_of: Uint = web3m
         .query_contract(contract_instance.clone(), "balanceOf", account)
         .await;
@@ -67,9 +67,7 @@ async fn main() -> web3::Result<()> {
     let tokenB = "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684";
     let path_address: Vec<&str> = vec![tokenA, tokenB];
 
-    web3m
-        .swap_eth_for_exact_tokens(router_instance, value, path_address)
-        .await;
+    web3m.swap_eth_for_exact_tokens( router_instance, value, path_address).await;
 
     //println!("query_result: {:?}", query_result);
 

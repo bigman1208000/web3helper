@@ -63,8 +63,7 @@ impl Web3Manager {
             self.web3http.eth(),
             Address::from_str(plain_contract_address).unwrap(),
             abi_path,
-        )
-            .unwrap();
+        ).unwrap();
 
         return contract_instance;
     }
@@ -97,19 +96,18 @@ impl Web3Manager {
             addresses3.push(Address::from_str(pair).unwrap());
         }
 
-
         let amountIn: U256 = U256::from_dec_str(value).unwrap();
         let parameterIn = (amountIn, addresses);
         let amount_in_min: Vec<Uint> = self.query_contract(contract_instance.clone(), "getAmountsIn", parameterIn).await;
         println!("amount_in_min[0]: {:?}", wei_to_eth(amount_in_min[0]));
-        println!("amount_in_min[1]: {:?}",  wei_to_eth(amount_in_min[1]));
+        println!("amount_in_min[1]: {:?}", wei_to_eth(amount_in_min[1]));
         println!("");
 
         let amountOut: U256 = U256::from_dec_str(value).unwrap();
         let parameterOut = (amountOut, addresses2);
         let amount_out_min: Vec<Uint> = self.query_contract(contract_instance.clone(), "getAmountsOut", parameterOut).await;
         println!("amount_out_min[0]: {:?}", wei_to_eth(amount_out_min[0]));
-        println!("amount_out_min[1]: {:?}",  wei_to_eth(amount_out_min[1]));
+        println!("amount_out_min[1]: {:?}", wei_to_eth(amount_out_min[1]));
         println!("");
 
         let slipage = 2;
@@ -124,7 +122,7 @@ impl Web3Manager {
         let parameters2 = (
             min_amount_less_slipagge,
             addresses3,
-            self.get_account(),
+            self.get_first_loaded_account(),
             deadline + 600,
         );
 
@@ -155,6 +153,7 @@ impl Web3Manager {
         return estimimated_out_amount;
     }
 
+    // todo
     pub async fn get_token_balances(&mut self) -> U256 {
         return U256::from(0);
     }
@@ -173,7 +172,7 @@ impl Web3Manager {
         let nonce: U256 = self
             .web3http
             .eth()
-            .transaction_count(self.get_account(), None)
+            .transaction_count(self.get_first_loaded_account(), None)
             .await
             .unwrap();
 
@@ -185,12 +184,16 @@ impl Web3Manager {
         plain_address: &str,
         plain_private_key: &str,
     ) -> &mut Web3Manager {
+
+        // cast plain pk to sk type
         let private_key: SecretKey = SecretKey::from_str(plain_private_key).unwrap();
         let wallet: H160 = H160::from_str(plain_address).unwrap();
 
+        // push on account list
         self.accounts_map.insert(wallet, private_key);
         self.accounts.push(wallet);
 
+        // get last nonce from loaded account
         let nonce: U256 = self.get_nonce().await;
         self.current_nonce = nonce;
 
@@ -373,7 +376,7 @@ impl Web3Manager {
         return out_gas_estimate;
     }
 
-    pub fn get_account(&mut self) -> H160 {
+    pub fn get_first_loaded_account(&mut self) -> H160 {
         return self.accounts[0];
     }
 
@@ -417,9 +420,10 @@ impl Web3Manager {
         let estimated_tx_gas: U256 = U256::from_dec_str("8000000").unwrap();
         */
 
+        // 2. encode_tx_data
         let tx_data: Bytes = self.encode_tx_data(contract_instance.clone(), &func, params.clone());
 
-        // build tx parameters
+        // 3. build tx parameters
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(
             self.current_nonce,
             contract_instance.address(),
@@ -429,7 +433,7 @@ impl Web3Manager {
             tx_data,
         );
 
-        // sign tx
+        // 4. sign tx
         let signed_transaction: SignedTransaction = self.sign_transaction(tx_parameters).await;
 
         // send tx
@@ -445,7 +449,7 @@ impl Web3Manager {
             &env::var("EXPLORER").unwrap(),
             result
         );
-        self.current_nonce = self.current_nonce + 1;
+        self.current_nonce = self.current_nonce + 1; // todo, check pending nonce dont works
         return result;
     }
 
@@ -472,8 +476,8 @@ impl Web3Manager {
 }
 
 fn wei_to_eth(wei_val: U256) -> f64 {
-    let res = wei_val.as_u128() as f64;
-    let res = res / 1_000_000_000_000_000_000.0;
+    let res: f64 = wei_val.as_u128() as f64;
+    let res: f64 = res / 1_000_000_000_000_000_000.0;
     return res;
 }
 

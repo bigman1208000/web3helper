@@ -91,10 +91,12 @@ impl Web3Manager {
             .as_secs();
 
         let mut addresses = Vec::new();
-        for pair in pairs {
-            addresses.push(Address::from_str(pair).unwrap())
-        }
+        let mut addresses2 = Vec::new();
 
+        for pair in pairs {
+            addresses.push(Address::from_str(pair).unwrap());
+            addresses2.push(Address::from_str(pair).unwrap());
+        }
 
         let amountOut = Uint::from_dec_str(value).unwrap();
         let parameter1 = (amountOut, addresses);
@@ -102,15 +104,15 @@ impl Web3Manager {
             .query_contract(contract_instance, "getAmountsOut", parameter1)
             .await;
 
-        println!("amount_out_min: {:?}", amount_out_min);    
+        println!("amount_out_min: {:?}", amount_out_min);
 
         let parameters2 = (
             amount_out_min[0],
-            addresses,
+            addresses2,
             self.get_account(),
             deadline + 300,
         );
-        
+
         //self.sign_and_send_tx(contract_instance, contract_function, parameters2).await
         // return result;
         return H256::from_str("1").unwrap();

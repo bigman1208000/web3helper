@@ -369,7 +369,6 @@ impl Web3Manager {
                 self.accounts[0],
                 Options {
                     value: Some(U256::from_dec_str(value).unwrap()),
-                    gas: Some(U256::from_dec_str("8000000").unwrap()),
                     ..Default::default()
                 },
             )

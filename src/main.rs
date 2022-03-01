@@ -76,7 +76,7 @@ async fn main() -> web3::Result<()> {
     // let deadline = web3m.generate_deadline();
     // let parameters = (amountOut, path_address);
     // let account = web3m.get_account();
-    let query_result: Vec<Uint> = web3m
+    let query_result: H256 = web3m
         .swap_erc20_token(router_instance, value, path_address)
         .await;
 

@@ -76,7 +76,7 @@ impl Web3Manager {
                 .as_secs(),
         )
     }
-    
+
 
     pub async fn swap_eth_for_exact_tokens(
         &mut self,
@@ -129,7 +129,7 @@ impl Web3Manager {
 
         println!("parameters2: {:?}", parameters2);
 
-        let result: H256 = self.sign_and_send_tx(contract_instance.clone(), contract_function, parameters2,amount_out_min[1]).await;
+        let result: H256 = self.sign_and_send_tx(contract_instance.clone(), contract_function, parameters2, amount_out_min[1].to_string().as_str()).await;
         return result;
     }
 
@@ -397,7 +397,7 @@ impl Web3Manager {
                 contract_instance,
                 contract_function.to_string(),
                 contract_function_parameters,
-                "0"
+                "0",
             )
             .await;
         return result;
@@ -408,7 +408,7 @@ impl Web3Manager {
         contract_instance: Contract<Http>,
         func: String,
         params: P,
-        value: &str
+        value: &str,
     ) -> H256
         where
             P: Tokenize,
@@ -417,7 +417,7 @@ impl Web3Manager {
         // increase 200ms execution time, we use high gas available
         // gas not used goes back to contract
         let estimated_tx_gas: U256 = self
-            .estimate_tx_gas(contract_instance.clone(), &func, params.clone(),value)
+            .estimate_tx_gas(contract_instance.clone(), &func, params.clone(), value)
             .await;
 
         /*
@@ -473,7 +473,7 @@ impl Web3Manager {
                 contract_instance,
                 contract_function.to_string(),
                 contract_function_parameters,
-                "0"
+                "0",
             )
             .await;
         return result;

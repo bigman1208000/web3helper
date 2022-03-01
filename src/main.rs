@@ -67,13 +67,13 @@ async fn main() -> web3::Result<()> {
     // let tokenB: Address = Address::from_str("0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd").unwrap();
     // let path_address = vec![tokenA, tokenB];
 
-    let tokenA: Address = Address::from_str("0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd").unwrap();
-    let tokenB: Address = Address::from_str("0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684").unwrap();
-    let tokenC: Address = Address::from_str("0x8BaBbB98678facC7342735486C851ABD7A0d17Ca").unwrap();
+    let tokenA = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
+    let tokenB = "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684";
+    let tokenC = "0x8BaBbB98678facC7342735486C851ABD7A0d17Ca";
     let path_address = vec![tokenA, tokenB, tokenC];
-    let to_address: Address =
-        Address::from_str("0xBBE288a722065421cF48bF25C3E57cFea56Bf869").unwrap();
-    let deadline = web3m.generate_deadline();
+    // let to_address: Address =
+    //     Address::from_str("0xBBE288a722065421cF48bF25C3E57cFea56Bf869").unwrap();
+    // let deadline = web3m.generate_deadline();
     let parameters = (amountOut, path_address);
     // let account = web3m.get_account();
     let query_result: Vec<Uint> = web3m

@@ -82,26 +82,31 @@ impl Web3Manager {
         &mut self,
         contract_instance: Contract<Http>,
         value: &str,
-        pairA: &str,
-        pairB: &str,
-        to: &str,
+        pairs: Vec<&str>,
     ) -> H256 {
-        let contract_function = "swapTokensForTokens".to_string();
+        let contract_function = "swapExactETHForTokens".to_string();
         let deadline = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_secs();
 
-        let tokenA: Address = Address::from_str(pairA).unwrap();
-        let tokenB: Address = Address::from_str(pairB).unwrap();
+        let mut address = Vec::new();
+        for pair in pairs {
+            address.push(Address::from_str(pair).unwrap())
+        }
 
+        let parameter1 =
+        let parameter2 =
+        let parameters = (amountOut, path_address);
+        let amount_out_min = self.query_result: Vec<Uint> = self
+            .query_contract(contract_instance, "getAmountsOut", parameters)
+            .await;
         let recipient_address: Address = Address::from_str(to).unwrap();
         let valueA = Uint::from_dec_str(value).unwrap();
         let valueB = Uint::from_dec_str(value).unwrap();
         let parameters = (
-            valueA,
-            valueB,
             Uint::from_dec_str(value).unwrap(),
+            self.get_account(),
             vec![tokenA.to_string(), tokenB.to_string()],
             recipient_address,
             deadline + 300,

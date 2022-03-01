@@ -11,7 +11,8 @@ use web3::types::{
     Address, BlockNumber, Bytes, SignedTransaction, TransactionParameters, H160, U256, U64,
 };
 
-extern crate serde;
+// NOTE(elsuizo:2022-02-28): ya no hace falta hacer extern de crates
+// extern crate serde;
 
 use std::fs::File;
 use std::io::Read;

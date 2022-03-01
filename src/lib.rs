@@ -38,6 +38,7 @@ where
 // implement this trait for every type that implements `Any` (which is most types)
 impl<T: ?Sized + Any> InstanceOf for T {}
 
+#[derive(Clone)]
 pub struct Web3Manager {
     accounts: Vec<H160>,
     // public addressess
@@ -67,36 +68,43 @@ impl Web3Manager {
     pub async fn swap_erc20_token(
         &mut self,
         contract_instance: Contract<Http>,
-        valueA: &str,
-        valueB: &str,
+        value: &str,
         pairA: &str,
         pairB: &str,
         to: &str,
     ) -> H256 {
-        let contract_function = "swapTokensForTokens";
+        let contract_function = "swapTokensForTokens".to_string();
         let deadline = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_secs();
 
+        let tokenA: Address = Address::from_str(pairA).unwrap();
+        let tokenB: Address = Address::from_str(pairB).unwrap();
+
         let recipient_address: Address = Address::from_str(to).unwrap();
-        let contract_function_parameters = (
-            U256::from_dec_str(valueA).unwrap(),
-            U256::from_dec_str(valueB).unwrap(),
-            vec![pairA, pairB],
+        let valueA = Uint::from_dec_str(value).unwrap();
+        let valueB = Uint::from_dec_str(value).unwrap();
+        let parameters = (
+            valueA,
+            valueB,
+            Uint::from_dec_str(value).unwrap(),
+            vec![tokenA.to_string(), tokenB.to_string()],
             recipient_address,
             deadline + 300,
         );
 
-        let result: H256 = self
-            .sign_and_send_tx(
-                contract_instance,
-                contract_function,
-                contract_function_parameters,
-            )
-            .await;
-        return result;
-        //return H256::from_str("1").unwrap();
+        // let contract_function_parameters = (
+        //     U256::from_dec_str(a).unwrap(),
+        //     U256::from_dec_str(valueB).unwrap(),
+        //     vec![pairA.to_string(), pairB.to_string()],
+        //     recipient_address,
+        //     deadline + 300,
+        // );
+        // self.sign_and_send_tx(contract_instance, contract_function, parameters)
+        // .await
+        // return result;
+        return H256::from_str("1").unwrap();
     }
 
     pub async fn get_out_estimated_tokens_for_tokens(
@@ -105,16 +113,19 @@ impl Web3Manager {
         pairA: &str,
         pairB: &str,
         amount: &str,
-    ) -> H256 {
-        let estimimated_out_amount: Uint = web3m
+    ) -> U256 {
+        let estimimated_out_amount: Uint = self
             .query_contract(
                 contract_instance.clone(),
                 "getAmountsOut",
-                (amount, vec![pairA, pairB]),
+                (
+                    amount.to_string(),
+                    vec![pairA.to_string(), pairB.to_string()],
+                ),
             )
             .await;
 
-        return estimimated_out_amount[0];
+        return estimimated_out_amount;
     }
 
     pub async fn get_token_balances(&mut self) -> U256 {
@@ -383,73 +394,73 @@ impl Web3Manager {
         let result: H256 = self
             .sign_and_send_tx(
                 contract_instance,
-                contract_function,
+                contract_function.to_string(),
                 contract_function_parameters,
             )
             .await;
         return result;
     }
 
-    pub async fn swap_erc20_token(
-        &mut self,
-        contract_instance: Contract<Http>,
-        valueA: &str,
-        valueB: &str,
-        pairA: &str,
-        pairB: &str,
-        to: &str,
-    ) -> H256 {
-        let contract_function = "swapTokensForTokens";
-        let deadline = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+    // pub async fn swap_erc20_token(
+    //     &mut self,
+    //     contract_instance: Contract<Http>,
+    //     valueA: &str,
+    //     valueB: &str,
+    //     pairA: &str,
+    //     pairB: &str,
+    //     to: &str,
+    // ) -> H256 {
+    //     let contract_function = "swapTokensForTokens";
+    //     let deadline = SystemTime::now()
+    //         .duration_since(SystemTime::UNIX_EPOCH)
+    //         .unwrap()
+    //         .as_secs();
+    //
+    //     let recipient_address: Address = Address::from_str(to).unwrap();
+    //     let contract_function_parameters = (
+    //         U256::from_dec_str(valueA).unwrap(),
+    //         U256::from_dec_str(valueB).unwrap(),
+    //         vec![pairA, pairB],
+    //         recipient_address,
+    //         deadline + 300,
+    //     );
+    //
+    //     let result: H256 = self
+    //         .sign_and_send_tx(
+    //             contract_instance,
+    //             contract_function,
+    //             contract_function_parameters,
+    //         )
+    //         .await;
+    //     return result;
+    //     //return H256::from_str("1").unwrap();
+    // }
 
-        let recipient_address: Address = Address::from_str(to).unwrap();
-        let contract_function_parameters = (
-            U256::from_dec_str(valueA).unwrap(),
-            U256::from_dec_str(valueB).unwrap(),
-            vec![pairA, pairB],
-            recipient_address,
-            deadline + 300,
-        );
-
-        let result: H256 = self
-            .sign_and_send_tx(
-                contract_instance,
-                contract_function,
-                contract_function_parameters,
-            )
-            .await;
-        return result;
-        //return H256::from_str("1").unwrap();
-    }
-
-    pub async fn get_out_estimated_tokens_for_tokens(
-        &mut self,
-        contract_instance: Contract<Http>,
-        pairA: &str,
-        pairB: &str,
-        amount: &str,
-    ) {
-        //let estimimated_out_amount: Uint = self.query_contract(contract_instance.clone(),"getAmountsOut",).await[0];
-
-        let tokenA: Address = Address::from_str(pairA).unwrap();
-        let tokenB: Address = Address::from_str(pairB).unwrap();
-
-        let a: Uint = Uint::from_dec_str("100000000000000").unwrap();
-
-        let estimimated_out_amount: web3::contract::Result<Vec<String>> = self
-            .query_contract(
-                contract_instance.clone(),
-                "getAmountsOut",
-                (a, vec![tokenA, tokenB]),
-            )
-            .await;
-
-        println!("estimimated_out_amount: {:?}", estimimated_out_amount);
-        //return H256::from_dec_str("10000000").unwrap();
-    }
+    // pub async fn get_out_estimated_tokens_for_tokens(
+    //     &mut self,
+    //     contract_instance: Contract<Http>,
+    //     pairA: &str,
+    //     pairB: &str,
+    //     amount: &str,
+    // ) {
+    //     //let estimimated_out_amount: Uint = self.query_contract(contract_instance.clone(),"getAmountsOut",).await[0];
+    //
+    //     let tokenA: Address = Address::from_str(pairA).unwrap();
+    //     let tokenB: Address = Address::from_str(pairB).unwrap();
+    //
+    //     let a: Uint = Uint::from_dec_str("100000000000000").unwrap();
+    //
+    //     let estimimated_out_amount: web3::contract::Result<Vec<String>> = self
+    //         .query_contract(
+    //             contract_instance.clone(),
+    //             "getAmountsOut",
+    //             (a, vec![tokenA, tokenB]),
+    //         )
+    //         .await;
+    //
+    //     println!("estimimated_out_amount: {:?}", estimimated_out_amount);
+    //     //return H256::from_dec_str("10000000").unwrap();
+    // }
 
     /*
 
@@ -467,27 +478,27 @@ impl Web3Manager {
 
     */
 
-    pub async fn sign_and_send_tx<P: Clone + Copy>(
+    pub async fn sign_and_send_tx<P: Clone>(
         &mut self,
         contract_instance: Contract<Http>,
-        func: &str,
+        func: String,
         params: P,
     ) -> H256
     where
-        P: Tokenize,
+        P: Tokenize + Copy,
     {
         // estimate gas for call this function with this parameters
         // increase 200ms execution time, we use high gas available
         // gas not used goes back to contract
         let estimated_tx_gas: U256 = self
-            .estimate_tx_gas(contract_instance.clone(), func, params)
+            .estimate_tx_gas(contract_instance.clone(), &func, params)
             .await;
 
         /*
         let estimated_tx_gas: U256 = U256::from_dec_str("8000000").unwrap();
         */
 
-        let tx_data: Bytes = self.encode_tx_data(contract_instance.clone(), func, params.clone());
+        let tx_data: Bytes = self.encode_tx_data(contract_instance.clone(), &func, params.clone());
 
         // build tx parameters
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(
@@ -533,7 +544,7 @@ impl Web3Manager {
         let result: H256 = self
             .sign_and_send_tx(
                 contract_instance,
-                contract_function,
+                contract_function.to_string(),
                 contract_function_parameters,
             )
             .await;

@@ -61,26 +61,17 @@ async fn main() -> web3::Result<()> {
     println!("balance_of tokens: {}", balance_of);
     // -------------------------
 
-    let value = "5000000000000000000";
-    let amountOut = Uint::from_dec_str(value).unwrap();
-    // let tokenA: Address = Address::from_str("0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7").unwrap();
-    // let tokenB: Address = Address::from_str("0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd").unwrap();
-    // let path_address = vec![tokenA, tokenB];
+    let value = "100000000000000000";
 
     let tokenA = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
     let tokenB = "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684";
-    let tokenC = "0x8BaBbB98678facC7342735486C851ABD7A0d17Ca";
-    let path_address: Vec<&str> = vec![tokenA, tokenB, tokenC];
-    // let to_address: Address =
-    //     Address::from_str("0xBBE288a722065421cF48bF25C3E57cFea56Bf869").unwrap();
-    // let deadline = web3m.generate_deadline();
-    // let parameters = (amountOut, path_address);
-    // let account = web3m.get_account();
-    let query_result: H256 = web3m
+    let path_address: Vec<&str> = vec![tokenA, tokenB];
+
+    web3m
         .swap_erc20_token(router_instance, value, path_address)
         .await;
 
-    println!("query_result: {:?}", query_result);
+    //println!("query_result: {:?}", query_result);
 
     // let mut i = 0;
 

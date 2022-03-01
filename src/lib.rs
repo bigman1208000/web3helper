@@ -84,7 +84,7 @@ impl Web3Manager {
         value: &str,
         pairs: Vec<&str>,
     ) -> H256 {
-        let contract_function = "swapExactETHForTokens".to_string();
+        let contract_function = "swapETHForExactTokens".to_string();
         let deadline = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -92,27 +92,46 @@ impl Web3Manager {
 
         let mut addresses = Vec::new();
         let mut addresses2 = Vec::new();
+        let mut addresses3 = Vec::new();
 
         for pair in pairs {
             addresses.push(Address::from_str(pair).unwrap());
             addresses2.push(Address::from_str(pair).unwrap());
+            addresses3.push(Address::from_str(pair).unwrap());
         }
 
-        let amountOut:U256 = U256::from_dec_str(value).unwrap();
-        let parameter1 = (amountOut, addresses);
-        let amount_out_min: Vec<Uint> = self
-            .query_contract(contract_instance.clone(), "getAmountsOut", parameter1)
-            .await;
 
-        println!("amount_out_min: {:?}", amount_out_min);
+        let amountIn: U256 = U256::from_dec_str(value).unwrap();
+        let parameterIn = (amountIn, addresses);
+        let amount_in_min: Vec<Uint> = self.query_contract(contract_instance.clone(), "getAmountsIn", parameterIn).await;
+        println!("amount_in_min[0]: {:?}", wei_to_eth(amount_in_min[0]));
+        println!("amount_in_min[1]: {:?}",  wei_to_eth(amount_in_min[1]));
+        println!("");
 
+        let amountOut: U256 = U256::from_dec_str(value).unwrap();
+        let parameterOut = (amountOut, addresses2);
+        let amount_out_min: Vec<Uint> = self.query_contract(contract_instance.clone(), "getAmountsOut", parameterOut).await;
+        println!("amount_out_min[0]: {:?}", wei_to_eth(amount_out_min[0]));
+        println!("amount_out_min[1]: {:?}",  wei_to_eth(amount_out_min[1]));
+        println!("");
+
+        let slipage = 2;
+        println!("slipage: {:?} %", slipage);
+
+        let min_amount = U256::from(amount_out_min[1].as_u128());
+        println!("min_amount: {:?}", wei_to_eth(min_amount));
+
+        let min_amount_less_slipagge = min_amount - ((min_amount * slipage) / 100);
+        println!("min_amount_less_slipagge: {:?}", wei_to_eth(min_amount_less_slipagge));
 
         let parameters2 = (
-            amount_out_min[0],
-            addresses2,
+            min_amount_less_slipagge,
+            addresses3,
             self.get_account(),
-            deadline + 300,
+            deadline + 600,
         );
+
+        println!("parameters2: {:?}", parameters2);
 
         let result: H256 = self.sign_and_send_tx(contract_instance.clone(), contract_function, parameters2).await;
         return result;

@@ -65,6 +65,15 @@ impl Web3Manager {
     }
     */
 
+    pub fn generate_deadline(&self) -> Uint {
+        U256::from(
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        )
+    }
+
     pub async fn swap_erc20_token(
         &mut self,
         contract_instance: Contract<Http>,

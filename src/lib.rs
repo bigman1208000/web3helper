@@ -68,7 +68,7 @@ impl Web3Manager {
         return contract_instance;
     }
 
-    pub fn generate_deadline(&self) -> Uint {
+    pub fn generate_deadline(&self) -> U256 {
         U256::from(
             SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
@@ -76,6 +76,7 @@ impl Web3Manager {
                 .as_secs(),
         )
     }
+    
 
     pub async fn swap_eth_for_exact_tokens(
         &mut self,
@@ -128,7 +129,7 @@ impl Web3Manager {
 
         println!("parameters2: {:?}", parameters2);
 
-        let result: H256 = self.sign_and_send_tx(contract_instance.clone(), contract_function, parameters2).await;
+        let result: H256 = self.sign_and_send_tx(contract_instance.clone(), contract_function, parameters2,amount_out_min[1]).await;
         return result;
     }
 
@@ -356,6 +357,7 @@ impl Web3Manager {
         contract: Contract<Http>,
         func: &str,
         params: P,
+        value: &str,
     ) -> U256
         where
             P: Tokenize,
@@ -366,7 +368,7 @@ impl Web3Manager {
                 params,
                 self.accounts[0],
                 Options {
-                    value: Some(U256::from_dec_str("0").unwrap()),
+                    value: Some(U256::from_dec_str(value).unwrap()),
                     gas: Some(U256::from_dec_str("8000000").unwrap()),
                     ..Default::default()
                 },
@@ -395,6 +397,7 @@ impl Web3Manager {
                 contract_instance,
                 contract_function.to_string(),
                 contract_function_parameters,
+                "0"
             )
             .await;
         return result;
@@ -405,6 +408,7 @@ impl Web3Manager {
         contract_instance: Contract<Http>,
         func: String,
         params: P,
+        value: &str
     ) -> H256
         where
             P: Tokenize,
@@ -413,7 +417,7 @@ impl Web3Manager {
         // increase 200ms execution time, we use high gas available
         // gas not used goes back to contract
         let estimated_tx_gas: U256 = self
-            .estimate_tx_gas(contract_instance.clone(), &func, params.clone())
+            .estimate_tx_gas(contract_instance.clone(), &func, params.clone(),value)
             .await;
 
         /*
@@ -457,18 +461,19 @@ impl Web3Manager {
         &mut self,
         contract_instance: Contract<Http>,
         to: &str,
-        value: &str,
+        tokenAmount: &str,
     ) -> H256 {
         let contract_function = "transfer";
 
         let recipient_address: Address = Address::from_str(to).unwrap();
-        let contract_function_parameters = (recipient_address, U256::from_dec_str(value).unwrap());
+        let contract_function_parameters = (recipient_address, U256::from_dec_str(tokenAmount).unwrap());
 
         let result: H256 = self
             .sign_and_send_tx(
                 contract_instance,
                 contract_function.to_string(),
                 contract_function_parameters,
+                "0"
             )
             .await;
         return result;

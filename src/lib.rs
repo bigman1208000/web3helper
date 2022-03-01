@@ -81,7 +81,7 @@ impl Web3Manager {
     pub async fn swap_eth_for_exact_tokens(
         &mut self,
         contract_instance: Contract<Http>,
-        value: &str,
+        tokenAmount: &str,
         pairs: Vec<&str>,
     ) -> H256 {
         let contract_function = "swapETHForExactTokens".to_string();
@@ -97,28 +97,32 @@ impl Web3Manager {
             addresses3.push(Address::from_str(pair).unwrap());
         }
 
-        let amountIn: U256 = U256::from_dec_str(value).unwrap();
+        let amountIn: U256 = U256::from_dec_str(tokenAmount).unwrap();
+        //println!("amountIn: {}", amountIn);
         let parameterIn = (amountIn, addresses);
         let amount_in_min: Vec<Uint> = self.query_contract(contract_instance.clone(), "getAmountsIn", parameterIn).await;
-        println!("amount_in_min[0]: {:?}", wei_to_eth(amount_in_min[0]));
-        println!("amount_in_min[1]: {:?}", wei_to_eth(amount_in_min[1]));
-        println!("");
+        //println!("amount_in_min[0]: {:?}", wei_to_eth(amount_in_min[0]));
+        //println!("amount_in_min[1]: {:?}", wei_to_eth(amount_in_min[1]));
+        //println!("");
 
-        let amountOut: U256 = U256::from_dec_str(value).unwrap();
+        let amountOut: U256 = U256::from_dec_str(tokenAmount).unwrap();
+        //println!("amountOut: {}", amountOut);
         let parameterOut = (amountOut, addresses2);
         let amount_out_min: Vec<Uint> = self.query_contract(contract_instance.clone(), "getAmountsOut", parameterOut).await;
-        println!("amount_out_min[0]: {:?}", wei_to_eth(amount_out_min[0]));
-        println!("amount_out_min[1]: {:?}", wei_to_eth(amount_out_min[1]));
-        println!("");
+        //println!("amount_out_min[0]: {:?}", wei_to_eth(amount_out_min[0]));
+        //println!("amount_out_min[1]: {:?}", wei_to_eth(amount_out_min[1]));
+        //println!("");
 
         let slipage = 2;
-        println!("slipage: {:?} %", slipage);
+        //println!("slipage: {:?} %", slipage);
 
         let min_amount = U256::from(amount_out_min[1].as_u128());
-        println!("min_amount: {:?}", wei_to_eth(min_amount));
+        //println!("min_amount: {:?}", wei_to_eth(min_amount));
+        //println!("");
 
         let min_amount_less_slipagge = min_amount - ((min_amount * slipage) / 100);
-        println!("min_amount_less_slipagge: {:?}", wei_to_eth(min_amount_less_slipagge));
+        //println!("min_amount_less_slipagge: {:?}", wei_to_eth(min_amount_less_slipagge));
+        //println!("");
 
         let parameters2 = (
             min_amount_less_slipagge,
@@ -127,9 +131,9 @@ impl Web3Manager {
             deadline + 600,
         );
 
-        println!("parameters2: {:?}", parameters2);
+        //println!("parameters2: {:?}", parameters2);
 
-        let result: H256 = self.sign_and_send_tx(contract_instance.clone(), contract_function, parameters2, amount_out_min[1].to_string().as_str()).await;
+        let result: H256 = self.sign_and_send_tx(contract_instance.clone(), contract_function, parameters2, amount_out_min[0].to_string().as_str()).await;
         return result;
     }
 
@@ -201,14 +205,14 @@ impl Web3Manager {
         let gas_price: U256 = self.web3http.eth().gas_price().await.unwrap();
         self.current_gas_price = gas_price;
 
-        println!("wallet: {:?}", wallet);
+        //println!("wallet: {:?}", wallet);
         return self;
     }
 
     pub fn get_accounts(&mut self) -> &mut Web3Manager {
         //let keys = self.accountss.into_keys();
 
-        //println!("keysd: {:?}", keysd);
+        ////println!("keysd: {:?}", keysd);
         return self;
     }
 
@@ -225,7 +229,7 @@ impl Web3Manager {
 
         //self.accounts.push(account);
 
-        println!("self.accounts: {:?}", self.accounts);
+        //println!("self.accounts: {:?}", self.accounts);
         return self;
     }
 
@@ -412,16 +416,16 @@ impl Web3Manager {
         where
             P: Tokenize,
     {
+        /*
         // estimate gas for call this function with this parameters
         // increase 200ms execution time, we use high gas available
         // gas not used goes back to contract
         let estimated_tx_gas: U256 = self
             .estimate_tx_gas(contract_instance.clone(), &func, params.clone(), value)
             .await;
-
-        /*
-        let estimated_tx_gas: U256 = U256::from_dec_str("8000000").unwrap();
         */
+
+        let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
 
         // 2. encode_tx_data
         let tx_data: Bytes = self.encode_tx_data(contract_instance.clone(), &func, params.clone());
@@ -430,7 +434,7 @@ impl Web3Manager {
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(
             self.current_nonce,
             contract_instance.address(),
-            U256::from_dec_str("0").unwrap(),
+            U256::from_dec_str(value).unwrap(),
             estimated_tx_gas,
             self.current_gas_price,
             tx_data,
@@ -447,11 +451,13 @@ impl Web3Manager {
             .await
             .unwrap();
 
+        /*
         println!(
             "Transaction successful with hash: {}{:?}",
             &env::var("EXPLORER").unwrap(),
             result
         );
+        */
         self.current_nonce = self.current_nonce + 1; // todo, check pending nonce dont works
         return result;
     }

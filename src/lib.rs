@@ -11,6 +11,7 @@ use std::process;
 use std::ptr::null;
 use std::str::FromStr;
 use std::time::Instant;
+use std::time::SystemTime;
 use std::{thread, time::Duration};
 use web3::api::Eth;
 use web3::contract::tokens::{Detokenize, Tokenizable, Tokenize};
@@ -62,6 +63,59 @@ impl Web3Manager {
         return contract_instance;
     }
     */
+
+    pub async fn swap_erc20_token(
+        &mut self,
+        contract_instance: Contract<Http>,
+        valueA: &str,
+        valueB: &str,
+        pairA: &str,
+        pairB: &str,
+        to: &str,
+    ) -> H256 {
+        let contract_function = "swapTokensForTokens";
+        let deadline = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let recipient_address: Address = Address::from_str(to).unwrap();
+        let contract_function_parameters = (
+            U256::from_dec_str(valueA).unwrap(),
+            U256::from_dec_str(valueB).unwrap(),
+            vec![pairA, pairB],
+            recipient_address,
+            deadline + 300,
+        );
+
+        let result: H256 = self
+            .sign_and_send_tx(
+                contract_instance,
+                contract_function,
+                contract_function_parameters,
+            )
+            .await;
+        return result;
+        //return H256::from_str("1").unwrap();
+    }
+
+    pub async fn get_out_estimated_tokens_for_tokens(
+        &mut self,
+        contract_instance: Contract<Http>,
+        pairA: &str,
+        pairB: &str,
+        amount: &str,
+    ) -> H256 {
+        let estimimated_out_amount: Uint = web3m
+            .query_contract(
+                contract_instance.clone(),
+                "getAmountsOut",
+                (amount, vec![pairA, pairB]),
+            )
+            .await;
+
+        return estimimated_out_amount[0];
+    }
 
     pub async fn get_token_balances(&mut self) -> U256 {
         return U256::from(0);
@@ -334,6 +388,67 @@ impl Web3Manager {
             )
             .await;
         return result;
+    }
+
+    pub async fn swap_erc20_token(
+        &mut self,
+        contract_instance: Contract<Http>,
+        valueA: &str,
+        valueB: &str,
+        pairA: &str,
+        pairB: &str,
+        to: &str,
+    ) -> H256 {
+        let contract_function = "swapTokensForTokens";
+        let deadline = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let recipient_address: Address = Address::from_str(to).unwrap();
+        let contract_function_parameters = (
+            U256::from_dec_str(valueA).unwrap(),
+            U256::from_dec_str(valueB).unwrap(),
+            vec![pairA, pairB],
+            recipient_address,
+            deadline + 300,
+        );
+
+        let result: H256 = self
+            .sign_and_send_tx(
+                contract_instance,
+                contract_function,
+                contract_function_parameters,
+            )
+            .await;
+        return result;
+        //return H256::from_str("1").unwrap();
+    }
+
+    pub async fn get_out_estimated_tokens_for_tokens(
+        &mut self,
+        contract_instance: Contract<Http>,
+        pairA: &str,
+        pairB: &str,
+        amount: &str,
+    ) {
+        //let estimimated_out_amount: Uint = self.query_contract(contract_instance.clone(),"getAmountsOut",).await[0];
+
+        let tokenA: Address = Address::from_str(pairA).unwrap();
+        let tokenB: Address = Address::from_str(pairB).unwrap();
+
+        let a: Uint = Uint::from_dec_str("100000000000000").unwrap();
+
+        let estimimated_out_amount: web3::contract::Result<Vec<String>> = self
+            .query_contract(
+                contract_instance.clone(),
+                "getAmountsOut",
+                (a, vec![tokenA, tokenB]),
+            )
+            .await;
+
+        println!("estimimated_out_amount: {:?}", estimimated_out_amount);
+        //return H256::from_dec_str("10000000").unwrap();
     }
 
     /*

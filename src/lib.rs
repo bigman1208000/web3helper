@@ -162,26 +162,6 @@ impl Web3Manager {
         return nonce;
     }
 
-    /*
-    pub async fn query_contract<R, P, T>(&mut self, func: &str, contract: Contract<Http>, params: P) -> web3::contract::Result<R>
-        where
-            R: Detokenize,
-            P: Tokenize {
-        /*
-            let balance_of: Uint = contract_instance.query("balanceOf", web3m.get_account(), None, Options::default(), None).await.unwrap();
-    println!("balance_of: {}", balance_of);
-         */
-
-        //println!("msg is ComplexMessage: {}", params.instance_of::<bool>());
-
-        let res = contract
-            .query(func, params, self.accounts[0], Options::default(), None)
-            .await;
-
-        return res;
-    }
-    */
-
     pub async fn load_accounts(
         &mut self,
         plain_address: &str,
@@ -285,17 +265,6 @@ impl Web3Manager {
             .unwrap();
         return query_result;
     }
-
-    /*
-    pub fn instance_contract(&mut self, contract_address: &str) -> Contract<Http> {
-        let contract_instance: Contract<Http>
-            = Contract::from_json(self.web3http.eth(),
-                                  Address::from_str(contract_address).unwrap(),
-                                  include_bytes!("../abi/TokenAbi.json")).unwrap();
-
-        return contract_instance;
-    }
-    */
 
     pub async fn send_raw_transaction(&mut self, raw_transaction: Bytes) -> H256 {
         let result: H256 = self
@@ -410,83 +379,6 @@ impl Web3Manager {
         return result;
     }
 
-    // pub async fn swap_erc20_token(
-    //     &mut self,
-    //     contract_instance: Contract<Http>,
-    //     valueA: &str,
-    //     valueB: &str,
-    //     pairA: &str,
-    //     pairB: &str,
-    //     to: &str,
-    // ) -> H256 {
-    //     let contract_function = "swapTokensForTokens";
-    //     let deadline = SystemTime::now()
-    //         .duration_since(SystemTime::UNIX_EPOCH)
-    //         .unwrap()
-    //         .as_secs();
-    //
-    //     let recipient_address: Address = Address::from_str(to).unwrap();
-    //     let contract_function_parameters = (
-    //         U256::from_dec_str(valueA).unwrap(),
-    //         U256::from_dec_str(valueB).unwrap(),
-    //         vec![pairA, pairB],
-    //         recipient_address,
-    //         deadline + 300,
-    //     );
-    //
-    //     let result: H256 = self
-    //         .sign_and_send_tx(
-    //             contract_instance,
-    //             contract_function,
-    //             contract_function_parameters,
-    //         )
-    //         .await;
-    //     return result;
-    //     //return H256::from_str("1").unwrap();
-    // }
-
-    // pub async fn get_out_estimated_tokens_for_tokens(
-    //     &mut self,
-    //     contract_instance: Contract<Http>,
-    //     pairA: &str,
-    //     pairB: &str,
-    //     amount: &str,
-    // ) {
-    //     //let estimimated_out_amount: Uint = self.query_contract(contract_instance.clone(),"getAmountsOut",).await[0];
-    //
-    //     let tokenA: Address = Address::from_str(pairA).unwrap();
-    //     let tokenB: Address = Address::from_str(pairB).unwrap();
-    //
-    //     let a: Uint = Uint::from_dec_str("100000000000000").unwrap();
-    //
-    //     let estimimated_out_amount: web3::contract::Result<Vec<String>> = self
-    //         .query_contract(
-    //             contract_instance.clone(),
-    //             "getAmountsOut",
-    //             (a, vec![tokenA, tokenB]),
-    //         )
-    //         .await;
-    //
-    //     println!("estimimated_out_amount: {:?}", estimimated_out_amount);
-    //     //return H256::from_dec_str("10000000").unwrap();
-    // }
-
-    /*
-
-    pub async fn approve(&mut self, contract_instance: Contract<Http>, from: &str, spender: &str, value: &str) -> H256 {
-
-        let from_address: Address = Address::from_str(from).unwrap();
-        let spender_address: Address = Address::from_str(spender).unwrap();
-
-
-        let contract_function = "approve";
-        let contract_function_parameters =
-            (from_address, spender_address, U256::from_dec_str(value).unwrap());
-
-    }
-
-    */
-
     pub async fn sign_and_send_tx<P: Clone>(
         &mut self,
         contract_instance: Contract<Http>,
@@ -559,70 +451,6 @@ impl Web3Manager {
             .await;
         return result;
     }
-
-    /*
-        pub async fn send_eth(&mut self, to: &str, value: U256) -> H256 {
-
-            let recipient_address: Address = Address::from_str(to).unwrap();
-
-            let nonce:U256 = self.get_nonce().await;
-
-            // Build the tx object
-            let tx_object = TransactionRequest {
-                from,
-                to: Some(recipient_address),
-                value: Some(U256::from(value)),
-                ..Default::default()
-            };
-
-            // Send the tx to localhost
-            let result = self.web3http.eth().send_transaction(tx_object).await.unwrap();
-
-
-
-            // sign tx
-            let signed_transaction: SignedTransaction = self.sign_transaction(tx_object).await;
-
-            // send tx
-            let result: H256 = self.web3http
-                .eth()
-                .send_raw_transaction(signed_transaction.raw_transaction)
-                .await
-                .unwrap();
-
-
-
-
-
-            let gas_price: U256 = self.web3http.eth().gas_price().await.unwrap();
-
-
-            // Insert the 20-byte "from" address in hex format (prefix with 0x)
-            //let from = Address::from_str("0xC48ad5fd060e1400a41bcf51db755251AD5A2475").unwrap();
-            let from = self.get_account();
-
-            // Insert the 20-byte "to" address in hex format (prefix with 0x)
-            //let to = Address::from_str(to).unwrap();
-
-            // Build the tx object
-            let tx_object = TransactionRequest {
-                from,
-                to: Some(recipient_address),
-                value: Some(U256::from(value)),
-                ..Default::default()
-            };
-
-            // Send the tx to localhost
-            let result = self.web3http.eth().send_transaction(tx_object).await.unwrap();
-
-            println!("Tx succeeded with hash: {}", result);
-
-
-            println!("Transaction successful with hash: {}{:?}", &env::var("EXPLORER").unwrap(), result);
-            return result;
-        }
-    }
-    */
 }
 
 fn wei_to_eth(wei_val: U256) -> f64 {

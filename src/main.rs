@@ -63,9 +63,9 @@ async fn main() -> web3::Result<()> {
 
     let value = "18295655684244268";
 
-    let tokenA = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
-    let tokenB = "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684";
-    let path_address: Vec<&str> = vec![tokenA, tokenB];
+    let token_a = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
+    let token_b = "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684";
+    let path_address: Vec<&str> = vec![token_a, token_b];
 
     web3m.swap_eth_for_exact_tokens( router_instance, value, path_address).await;
     //web3m.sent_erc20_token( contract_instance,contract_address, value).await;

@@ -4,3 +4,8 @@
 /target/*
 /target/**
 /target/
+
+.vscode
+.vscode/
+.vscode/*
+.vscode/**

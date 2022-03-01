@@ -1,0 +1,82 @@
+use std::env;
+use std::str::FromStr;
+use secp256k1::{SecretKey};
+use web3::contract::tokens::Tokenize;
+use web3::contract::{Contract, Options};
+use web3::types::{Address, Bytes, TransactionParameters, H160, U256, BlockNumber, U64, SignedTransaction};
+use web3::ethabi::Uint;
+use std::{thread, time::Duration};
+use serde::{Deserialize, Serialize};
+use std::process;
+
+extern crate serde;
+
+use std::fs::File;
+use std::io::Read;
+use web3::transports::Http;
+use web3::Web3;
+use web3::ethabi::ethereum_types::H256;
+use web3_rust_wrapper::Web3Manager;
+use std::time::Instant;
+
+
+#[tokio::main]
+async fn main() -> web3::Result<()> {
+    dotenv::dotenv().ok();
+
+    // init web3 conection
+    let web3HttpUrl = "https://api.avax.network/ext/bc/C/rpc";
+
+    //let web3HttpUrl = "https://avax-rpc.projectx.financial/163b4e48f008d26bb855854551f1f935c2463052e849676e0b8e82f0c563e887";
+    //let web3WebsocketUrl = "wss://avax-rpc.projectx.financial/node/08ed178abf02ea8237160cd18f6a52431b49dc07e43bfaec06960292a3866092";
+    let web3WebsocketUrl = "wss://api.avax-test.network/ext/bc/C/ws";
+
+    let mut web3m: Web3Manager
+        = Web3Manager::new(     web3HttpUrl,
+                                web3WebsocketUrl).await;
+
+    // load acount from .env file
+    web3m.load_accounts(&env::var("ACCOUNT_ADDRESS").unwrap(),
+                        &env::var("PRIVATE_TEST_KEY").unwrap()).await;
+
+    // init contract
+    let contract_address = "0x9e20Af05AB5FED467dFDd5bb5752F7d5410C832e";
+    let contract_instance: Contract<Http>
+        = Contract::from_json(web3m.web3http.eth(),
+                              Address::from_str(contract_address).unwrap(),
+                              include_bytes!("../abi/TokenAbi.json")).unwrap();
+
+    // call example
+    let account = web3m.get_account();
+    let balance_of: Uint = web3m.query_contract(contract_instance.clone(),
+                                                "balanceOf",
+                                                account).await;
+
+    println!("balance_of tokens: {}", balance_of);
+    // -------------------------
+
+    let now = Instant::now();
+
+    let mut i = 0;
+
+    while i < 2 {
+        let now = Instant::now();
+
+        // example of write contract
+
+        let to_address  = "0x2B0dcBA66631217e1ED23583dC959eaBf42FC090";
+        let value = "10000000";
+        web3m.approve_erc20_token(contract_instance.clone(), to_address, value).await;
+        //web3m.sent_erc20_token(contract_instance.clone(), to_address, value).await;
+
+        let elapsed = now.elapsed();
+        println!("Elapsed: {:.2?}", elapsed);
+        i = i + 1;
+    }
+
+    // -------------------------
+
+
+
+    Ok(())
+}

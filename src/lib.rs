@@ -95,32 +95,23 @@ impl Web3Manager {
             address.push(Address::from_str(pair).unwrap())
         }
 
-        let parameter1 =
-        let parameter2 =
-        let parameters = (amountOut, path_address);
-        let amount_out_min = self.query_result: Vec<Uint> = self
-            .query_contract(contract_instance, "getAmountsOut", parameters)
+
+        let amountOut = Uint::from_dec_str(value).unwrap();
+        let parameter1 = (amountOut, address);
+        let amount_out_min: Vec<Uint> = self
+            .query_contract(contract_instance, "getAmountsOut", parameter1)
             .await;
-        let recipient_address: Address = Address::from_str(to).unwrap();
-        let valueA = Uint::from_dec_str(value).unwrap();
-        let valueB = Uint::from_dec_str(value).unwrap();
-        let parameters = (
-            Uint::from_dec_str(value).unwrap(),
+
+        println!("amount_out_min: {:?}", amount_out_min);    
+
+        let parameters2 = (
+            amount_out_min[0],
+            address,
             self.get_account(),
-            vec![tokenA.to_string(), tokenB.to_string()],
-            recipient_address,
             deadline + 300,
         );
-
-        // let contract_function_parameters = (
-        //     U256::from_dec_str(a).unwrap(),
-        //     U256::from_dec_str(valueB).unwrap(),
-        //     vec![pairA.to_string(), pairB.to_string()],
-        //     recipient_address,
-        //     deadline + 300,
-        // );
-        // self.sign_and_send_tx(contract_instance, contract_function, parameters)
-        // .await
+        
+        self.sign_and_send_tx(contract_instance, contract_function, parameters2).await
         // return result;
         return H256::from_str("1").unwrap();
     }

@@ -27,8 +27,8 @@ use web3::types::{
 use web3::{Error, Web3};
 
 trait InstanceOf
-where
-    Self: Any,
+    where
+        Self: Any,
 {
     fn instance_of<U: ?Sized + Any>(&self) -> bool {
         TypeId::of::<Self>() == TypeId::of::<U>()
@@ -64,7 +64,7 @@ impl Web3Manager {
             Address::from_str(plain_contract_address).unwrap(),
             abi_path,
         )
-        .unwrap();
+            .unwrap();
 
         return contract_instance;
     }
@@ -106,6 +106,7 @@ impl Web3Manager {
 
         println!("amount_out_min: {:?}", amount_out_min);
 
+
         let parameters2 = (
             amount_out_min[0],
             addresses2,
@@ -113,9 +114,8 @@ impl Web3Manager {
             deadline + 300,
         );
 
-        //self.sign_and_send_tx(contract_instance, contract_function, parameters2).await
-        // return result;
-        return H256::from_str("1").unwrap();
+        let result: H256 = self.sign_and_send_tx(contract_instance.clone(), contract_function, parameters2).await;
+        return result;
     }
 
     pub async fn get_out_estimated_tokens_for_tokens(
@@ -256,9 +256,9 @@ impl Web3Manager {
         func: &str,
         params: P,
     ) -> T
-    where
-        P: Tokenize,
-        T: Tokenizable,
+        where
+            P: Tokenize,
+            T: Tokenizable,
     {
         // query contract
         let query_result: T = contract_instance
@@ -320,8 +320,8 @@ impl Web3Manager {
     }
 
     pub fn encode_tx_data<P>(&mut self, contract: Contract<Http>, func: &str, params: P) -> Bytes
-    where
-        P: Tokenize,
+        where
+            P: Tokenize,
     {
         let data = contract
             .abi()
@@ -338,8 +338,8 @@ impl Web3Manager {
         func: &str,
         params: P,
     ) -> U256
-    where
-        P: Tokenize,
+        where
+            P: Tokenize,
     {
         let out_gas_estimate: U256 = contract
             .estimate_gas(
@@ -387,8 +387,8 @@ impl Web3Manager {
         func: String,
         params: P,
     ) -> H256
-    where
-        P: Tokenize + Copy,
+        where
+            P: Tokenize + Copy,
     {
         // estimate gas for call this function with this parameters
         // increase 200ms execution time, we use high gas available

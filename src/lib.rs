@@ -78,17 +78,14 @@ impl Web3Manager {
         )
     }
 
-    pub async fn swap_erc20_token(
+    pub async fn swap_eth_for_exact_tokens(
         &mut self,
         contract_instance: Contract<Http>,
         value: &str,
         pairs: Vec<&str>,
     ) -> H256 {
         let contract_function = "swapETHForExactTokens".to_string();
-        let deadline = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let deadline = self.generate_deadline();
 
         let mut addresses = Vec::new();
         let mut addresses2 = Vec::new();

@@ -5,7 +5,7 @@
 /target/**
 /target/
 
-.vscode
+.vscode/launch.json
 .vscode/
 .vscode/*
 .vscode/**

@@ -61,14 +61,14 @@ async fn main() -> web3::Result<()> {
     println!("balance_of tokens: {}", balance_of);
     // -------------------------
 
-    let value = "100000000000000000";
+    let value = "18295655684244268";
 
     let tokenA = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
     let tokenB = "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684";
     let path_address: Vec<&str> = vec![tokenA, tokenB];
 
     web3m
-        .swap_erc20_token(router_instance, value, path_address)
+        .swap_eth_for_exact_tokens(router_instance, value, path_address)
         .await;
 
     //println!("query_result: {:?}", query_result);

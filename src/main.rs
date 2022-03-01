@@ -42,21 +42,15 @@ async fn main() -> web3::Result<()> {
 
     // init contract
     // usuario1
+    let contract_abi = include_bytes!("../abi/TokenAbi.json");
     let contract_address = "0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7";
-    let contract_instance: Contract<Http> = Contract::from_json(
-        web3m.web3http.eth(),
-        Address::from_str(contract_address).unwrap(),
-        include_bytes!("../abi/TokenAbi.json"),
-    )
-    .unwrap();
+    let contract_instance: Contract<Http> = web3m
+        .instance_contract(contract_address, contract_abi)
+        .await;
 
     let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
-    let router_instance: Contract<Http> = Contract::from_json(
-        web3m.web3http.eth(),
-        Address::from_str(router_address).unwrap(),
-        include_bytes!("../abi/RouterAbi.json"),
-    )
-    .unwrap();
+    let router_abi = include_bytes!("../abi/RouterAbi.json");
+    let router_instance: Contract<Http> = web3m.instance_contract(router_address, router_abi).await;
 
     // call example
     let account = web3m.get_account();

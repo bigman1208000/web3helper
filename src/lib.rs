@@ -54,16 +54,20 @@ pub struct Web3Manager {
 }
 
 impl Web3Manager {
-    /*
-    pub async fn instance_contract(&mut self, plain_contract_address: &str, abi_path: &str) -> Contract<Http> {
-        let contract_instance: Contract<Http>
-            = Contract::from_json(self.web3s.eth(),
-                                  Address::from_str(plain_contract_address).unwrap(),
-                                  include_bytes!("{}", abi_path)).unwrap();
+    pub async fn instance_contract(
+        &mut self,
+        plain_contract_address: &str,
+        abi_path: &[u8],
+    ) -> Contract<Http> {
+        let contract_instance: Contract<Http> = Contract::from_json(
+            self.web3http.eth(),
+            Address::from_str(plain_contract_address).unwrap(),
+            abi_path,
+        )
+        .unwrap();
 
         return contract_instance;
     }
-    */
 
     pub fn generate_deadline(&self) -> Uint {
         U256::from(

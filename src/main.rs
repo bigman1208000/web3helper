@@ -67,31 +67,44 @@ async fn main() -> web3::Result<()> {
     println!("balance_of tokens: {}", balance_of);
     // -------------------------
 
-    let mut i = 0;
+    let value = "5000000000000000000";
+    let amountOut = Uint::from_dec_str(value).unwrap();
+    let tokenA: Address = Address::from_str("0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7").unwrap();
+    let tokenB: Address = Address::from_str("0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd").unwrap();
+    let path_address = vec![tokenA, tokenB];
 
-    while i < 2 {
-        let now = Instant::now();
+    let parameters = (amountOut, path_address);
+    // let account = web3m.get_account();
+    let query_result: Vec<Uint> = web3m
+        .query_contract(router_instance, "getAmountsOut", parameters)
+        .await;
 
-        // example of write contract
+    println!("balance_of tokens: {}", balance_of);
+    // let mut i = 0;
 
-        // to usuario2
-        let to_address = "0x64F5F982AFD264d640A52cF0EC72A58103d18FEc";
-        // una moneda(esto es porque no soporta floats)
-        let value = "1000000000000000000";
-        // web3m
-        //     .approve_erc20_token(contract_instance.clone(), to_address, value)
-        //     .await;
-        web3m
-            .sent_erc20_token(contract_instance.clone(), to_address, value)
-            .await;
-        // web3m
-        //     .swap_erc20_token(router_instance.clone(), "1000000000000000000")
-        //     .await;
-
-        let elapsed = now.elapsed();
-        println!("Elapsed: {:.2?}", elapsed);
-        i = i + 1;
-    }
+    // while i < 2 {
+    //     let now = Instant::now();
+    //
+    //     // example of write contract
+    //
+    //     // to usuario2
+    //     let to_address = "0x64F5F982AFD264d640A52cF0EC72A58103d18FEc";
+    //     // una moneda(esto es porque no soporta floats)
+    //     let value = "1000000000000000000";
+    //     // web3m
+    //     //     .approve_erc20_token(contract_instance.clone(), to_address, value)
+    //     //     .await;
+    //     web3m
+    //         .sent_erc20_token(contract_instance.clone(), to_address, value)
+    //         .await;
+    //     // web3m
+    //     //     .swap_erc20_token(router_instance.clone(), "1000000000000000000")
+    //     //     .await;
+    //
+    //     let elapsed = now.elapsed();
+    //     println!("Elapsed: {:.2?}", elapsed);
+    //     i = i + 1;
+    // }
 
     // -------------------------
 

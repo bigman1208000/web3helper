@@ -61,7 +61,7 @@ async fn main() -> web3::Result<()> {
     println!("balance_of tokens: {}", balance_of);
     // -------------------------
 
-    let value = "18295655684244268";
+    let value = "10000000000000000";
 
     let tokenA = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
     let tokenB = "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684";

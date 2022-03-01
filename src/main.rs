@@ -67,7 +67,18 @@ async fn main() -> web3::Result<()> {
     let tokenB = "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684";
     let path_address: Vec<&str> = vec![tokenA, tokenB];
 
-    web3m.swap_eth_for_exact_tokens( router_instance, value, path_address).await;
+    let now = Instant::now();
+
+    let tx_id: H256 = web3m.swap_eth_for_exact_tokens( router_instance, value, path_address).await;
+
+    let elapsed = now.elapsed();
+    println!("elapsed: {:?}", elapsed);
+    println!(
+        "Transaction successful with hash: {}{:?}",
+        &env::var("EXPLORER").unwrap(),
+        tx_id
+    );
+    //     println!("Elapsed: {:.2?}", elapsed);
     //web3m.sent_erc20_token( contract_instance,contract_address, value).await;
 
 

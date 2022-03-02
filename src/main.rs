@@ -67,9 +67,9 @@ async fn main() -> web3::Result<()> {
 
     let value = "10000000000000000";
 
-    let tokenA = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
-    let tokenB = "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684";
-    let path_address: Vec<&str> = vec![tokenA, tokenB];
+    let token_a = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
+    let token_b = "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684";
+    let path_address: Vec<&str> = vec![token_a, token_b];
 
     let now = Instant::now();
 

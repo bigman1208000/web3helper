@@ -11,9 +11,6 @@ use web3::types::{
     Address, BlockNumber, Bytes, SignedTransaction, TransactionParameters, H160, U256, U64,
 };
 
-// NOTE(elsuizo:2022-02-28): ya no hace falta hacer extern de crates
-// extern crate serde;
-
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
@@ -26,15 +23,19 @@ use web3_rust_wrapper::Web3Manager;
 async fn main() -> web3::Result<()> {
     dotenv::dotenv().ok();
 
-    let web3_http_url = "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/testnet";
+    let web3_http_url
+        = "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/testnet";
     let web3_websocket_url =
         "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/testnet/ws";
 
-    let mut web3m: Web3Manager = Web3Manager::new(web3_http_url, web3_websocket_url).await;
+    let mut web3m: Web3Manager
+        = Web3Manager::new(
+        web3_http_url,
+        web3_websocket_url)
+        .await;
 
     // load acount from .env file
-    web3m
-        .load_accounts(
+    web3m.load_accounts(
             &env::var("ACCOUNT_ADDRESS").unwrap(),
             &env::var("PRIVATE_TEST_KEY").unwrap(),
         )
@@ -53,12 +54,15 @@ async fn main() -> web3::Result<()> {
     let router_instance: Contract<Http> = web3m.instance_contract(router_address, router_abi).await;
 
     // call example
-    let account = web3m.get_first_loaded_account();
+    let account:H160 = web3m.get_first_loaded_account();
     let balance_of: Uint = web3m
-        .query_contract(contract_instance.clone(), "balanceOf", account)
+        .query_contract(
+            contract_instance.clone(),
+            "balanceOf",
+            account)
         .await;
 
-    println!("balance_of tokens: {}", balance_of);
+    println!("balance_of tokens: {:?}", balance_of);
     // -------------------------
 
     let value = "10000000000000000";

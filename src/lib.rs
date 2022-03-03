@@ -55,18 +55,15 @@ pub struct Web3Manager {
 
 impl Web3Manager {
     pub async fn instance_contract(
-        &mut self,
+        &self,
         plain_contract_address: &str,
         abi_path: &[u8],
-    ) -> Contract<Http> {
-        let contract_instance: Contract<Http> = Contract::from_json(
+    ) -> Result<Contract<Http>, Box<dyn std::error::Error>> {
+        Ok(Contract::from_json(
             self.web3http.eth(),
             Address::from_str(plain_contract_address).unwrap(),
             abi_path,
-        )
-        .unwrap();
-
-        return contract_instance;
+        )?)
     }
 
     pub fn generate_deadline(&self) -> U256 {
@@ -78,95 +75,72 @@ impl Web3Manager {
         )
     }
 
+    // TODO(elsuizo:2022-03-03): documentation here
     pub async fn swap_eth_for_exact_tokens(
         &mut self,
-        contract_instance: Contract<Http>,
-        tokenAmount: &str,
-        pairs: Vec<&str>,
-    ) -> H256 {
+        contract_instance: &Contract<Http>,
+        token_amount: &str,
+        pairs: &[&str],
+    ) -> Result<H256, Box<dyn std::error::Error>> {
         let contract_function = "swapETHForExactTokens".to_string();
         let deadline = self.generate_deadline();
 
-        let mut addresses = Vec::new();
-        let mut addresses2 = Vec::new();
-        let mut addresses3 = Vec::new();
+        let mut addresses: [H160; 2] = [H160::default(); 2];
 
-        for pair in pairs {
-            addresses.push(Address::from_str(pair).unwrap());
-            addresses2.push(Address::from_str(pair).unwrap());
-            addresses3.push(Address::from_str(pair).unwrap());
-        }
+        addresses[0] = Address::from_str(pairs[0])?;
+        addresses[1] = Address::from_str(pairs[1])?;
 
-        let amountIn: U256 = U256::from_dec_str(tokenAmount).unwrap();
-        //println!("amountIn: {}", amountIn);
-        let parameterIn = (amountIn, addresses);
+        let amount_in = U256::from_dec_str(token_amount)?;
+        let parameter_in = (amount_in, addresses);
         let amount_in_min: Vec<Uint> = self
-            .query_contract(contract_instance.clone(), "getAmountsIn", parameterIn)
+            .query_contract(contract_instance, "getAmountsIn", parameter_in)
             .await;
-        //println!("amount_in_min[0]: {:?}", wei_to_eth(amount_in_min[0]));
-        //println!("amount_in_min[1]: {:?}", wei_to_eth(amount_in_min[1]));
-        //println!("");
 
-        let amountOut: U256 = U256::from_dec_str(tokenAmount).unwrap();
-        //println!("amountOut: {}", amountOut);
-        let parameterOut = (amountOut, addresses2);
+        let amount_out: U256 = U256::from_dec_str(token_amount).unwrap();
+        let parameter_out = (amount_out, addresses);
         let amount_out_min: Vec<Uint> = self
-            .query_contract(contract_instance.clone(), "getAmountsOut", parameterOut)
+            .query_contract(contract_instance, "getAmountsOut", parameter_out)
             .await;
-        //println!("amount_out_min[0]: {:?}", wei_to_eth(amount_out_min[0]));
-        //println!("amount_out_min[1]: {:?}", wei_to_eth(amount_out_min[1]));
-        //println!("");
 
-        let slipage = 2;
-        //println!("slipage: {:?} %", slipage);
+        let slipage = 2usize;
 
         let min_amount = U256::from(amount_out_min[1].as_u128());
-        //println!("min_amount: {:?}", wei_to_eth(min_amount));
-        //println!("");
 
-        let min_amount_less_slipagge = min_amount - ((min_amount * slipage) / 100);
-        //println!("min_amount_less_slipagge: {:?}", wei_to_eth(min_amount_less_slipagge));
-        //println!("");
+        let min_amount_less_slipagge = min_amount - ((min_amount * slipage) / 100usize);
 
         let parameters2 = (
             min_amount_less_slipagge,
-            addresses3,
+            addresses.clone(),
             self.get_first_loaded_account(),
-            deadline + 600,
+            deadline + 600usize,
         );
 
-        //println!("parameters2: {:?}", parameters2);
-
-        let result: H256 = self
+        Ok(self
             .sign_and_send_tx(
                 contract_instance.clone(),
                 contract_function,
-                parameters2,
+                &parameters2,
                 amount_out_min[0].to_string().as_str(),
             )
-            .await;
-        return result;
+            .await)
     }
 
     pub async fn get_out_estimated_tokens_for_tokens(
         &mut self,
-        contract_instance: Contract<Http>,
-        pairA: &str,
-        pairB: &str,
+        contract_instance: &Contract<Http>,
+        pair_a: &str,
+        pair_b: &str,
         amount: &str,
     ) -> U256 {
-        let estimimated_out_amount: Uint = self
-            .query_contract(
-                contract_instance.clone(),
-                "getAmountsOut",
-                (
-                    amount.to_string(),
-                    vec![pairA.to_string(), pairB.to_string()],
-                ),
-            )
-            .await;
-
-        return estimimated_out_amount;
+        self.query_contract(
+            contract_instance,
+            "getAmountsOut",
+            (
+                amount.to_string(),
+                vec![pair_a.to_string(), pair_b.to_string()],
+            ),
+        )
+        .await
     }
 
     // todo
@@ -286,7 +260,7 @@ impl Web3Manager {
 
     pub async fn query_contract<P, T>(
         &mut self,
-        contract_instance: Contract<Http>,
+        contract_instance: &Contract<Http>,
         func: &str,
         params: P,
     ) -> T
@@ -403,7 +377,7 @@ impl Web3Manager {
             .sign_and_send_tx(
                 contract_instance,
                 contract_function.to_string(),
-                contract_function_parameters,
+                &contract_function_parameters,
                 "0",
             )
             .await;
@@ -414,7 +388,7 @@ impl Web3Manager {
         &mut self,
         contract_instance: Contract<Http>,
         func: String,
-        params: P,
+        params: &P,
         value: &str,
     ) -> H256
     where
@@ -482,7 +456,7 @@ impl Web3Manager {
             .sign_and_send_tx(
                 contract_instance,
                 contract_function.to_string(),
-                contract_function_parameters,
+                &contract_function_parameters,
                 "0",
             )
             .await;

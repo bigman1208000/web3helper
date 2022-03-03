@@ -27,8 +27,8 @@ use web3::types::{
 use web3::{Error, Web3};
 
 trait InstanceOf
-    where
-        Self: Any,
+where
+    Self: Any,
 {
     fn instance_of<U: ?Sized + Any>(&self) -> bool {
         TypeId::of::<Self>() == TypeId::of::<U>()
@@ -63,7 +63,8 @@ impl Web3Manager {
             self.web3http.eth(),
             Address::from_str(plain_contract_address).unwrap(),
             abi_path,
-        ).unwrap();
+        )
+        .unwrap();
 
         return contract_instance;
     }
@@ -76,7 +77,6 @@ impl Web3Manager {
                 .as_secs(),
         )
     }
-
 
     pub async fn swap_eth_for_exact_tokens(
         &mut self,
@@ -100,7 +100,9 @@ impl Web3Manager {
         let amountIn: U256 = U256::from_dec_str(tokenAmount).unwrap();
         //println!("amountIn: {}", amountIn);
         let parameterIn = (amountIn, addresses);
-        let amount_in_min: Vec<Uint> = self.query_contract(contract_instance.clone(), "getAmountsIn", parameterIn).await;
+        let amount_in_min: Vec<Uint> = self
+            .query_contract(contract_instance.clone(), "getAmountsIn", parameterIn)
+            .await;
         //println!("amount_in_min[0]: {:?}", wei_to_eth(amount_in_min[0]));
         //println!("amount_in_min[1]: {:?}", wei_to_eth(amount_in_min[1]));
         //println!("");
@@ -108,7 +110,9 @@ impl Web3Manager {
         let amountOut: U256 = U256::from_dec_str(tokenAmount).unwrap();
         //println!("amountOut: {}", amountOut);
         let parameterOut = (amountOut, addresses2);
-        let amount_out_min: Vec<Uint> = self.query_contract(contract_instance.clone(), "getAmountsOut", parameterOut).await;
+        let amount_out_min: Vec<Uint> = self
+            .query_contract(contract_instance.clone(), "getAmountsOut", parameterOut)
+            .await;
         //println!("amount_out_min[0]: {:?}", wei_to_eth(amount_out_min[0]));
         //println!("amount_out_min[1]: {:?}", wei_to_eth(amount_out_min[1]));
         //println!("");
@@ -133,7 +137,14 @@ impl Web3Manager {
 
         //println!("parameters2: {:?}", parameters2);
 
-        let result: H256 = self.sign_and_send_tx(contract_instance.clone(), contract_function, parameters2, amount_out_min[0].to_string().as_str()).await;
+        let result: H256 = self
+            .sign_and_send_tx(
+                contract_instance.clone(),
+                contract_function,
+                parameters2,
+                amount_out_min[0].to_string().as_str(),
+            )
+            .await;
         return result;
     }
 
@@ -189,7 +200,6 @@ impl Web3Manager {
         plain_address: &str,
         plain_private_key: &str,
     ) -> &mut Web3Manager {
-
         // cast plain pk to sk type
         let private_key: SecretKey = SecretKey::from_str(plain_private_key).unwrap();
         let wallet: H160 = H160::from_str(plain_address).unwrap();
@@ -280,9 +290,9 @@ impl Web3Manager {
         func: &str,
         params: P,
     ) -> T
-        where
-            P: Tokenize,
-            T: Tokenizable,
+    where
+        P: Tokenize,
+        T: Tokenizable,
     {
         // query contract
         let query_result: T = contract_instance
@@ -302,20 +312,14 @@ impl Web3Manager {
         return result;
     }
 
-    pub async fn sign_transaction(
-        &mut self,
-        transact_obj: TransactionParameters,
-    ) -> SignedTransaction {
-        let private_key: secp256k1::SecretKey =
-            SecretKey::from_str(&env::var("PRIVATE_TEST_KEY").unwrap()).unwrap();
+    pub async fn sign_transaction(&self, transact_obj: TransactionParameters) -> SignedTransaction {
+        let private_key = SecretKey::from_str(&env::var("PRIVATE_TEST_KEY").unwrap()).unwrap();
 
-        let signed_transaction: SignedTransaction = self
-            .web3http
+        self.web3http
             .accounts()
             .sign_transaction(transact_obj, &private_key)
             .await
-            .unwrap();
-        return signed_transaction;
+            .unwrap()
     }
 
     pub fn encode_tx_parameters(
@@ -344,8 +348,8 @@ impl Web3Manager {
     }
 
     pub fn encode_tx_data<P>(&mut self, contract: Contract<Http>, func: &str, params: P) -> Bytes
-        where
-            P: Tokenize,
+    where
+        P: Tokenize,
     {
         let data = contract
             .abi()
@@ -363,8 +367,8 @@ impl Web3Manager {
         params: P,
         value: &str,
     ) -> U256
-        where
-            P: Tokenize,
+    where
+        P: Tokenize,
     {
         let out_gas_estimate: U256 = contract
             .estimate_gas(
@@ -413,8 +417,8 @@ impl Web3Manager {
         params: P,
         value: &str,
     ) -> H256
-        where
-            P: Tokenize,
+    where
+        P: Tokenize,
     {
         /*
         // estimate gas for call this function with this parameters
@@ -471,7 +475,8 @@ impl Web3Manager {
         let contract_function = "transfer";
 
         let recipient_address: Address = Address::from_str(to).unwrap();
-        let contract_function_parameters = (recipient_address, U256::from_dec_str(tokenAmount).unwrap());
+        let contract_function_parameters =
+            (recipient_address, U256::from_dec_str(tokenAmount).unwrap());
 
         let result: H256 = self
             .sign_and_send_tx(

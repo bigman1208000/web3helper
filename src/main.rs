@@ -1,22 +1,11 @@
-use secp256k1::SecretKey;
-use serde::{Deserialize, Serialize};
 use std::env;
-use std::process;
-use std::str::FromStr;
-use std::{thread, time::Duration};
-use web3::contract::tokens::Tokenize;
-use web3::contract::{Contract, Options};
+use web3::contract::{Contract};
 use web3::ethabi::Uint;
-use web3::types::{
-    Address, BlockNumber, Bytes, SignedTransaction, TransactionParameters, H160, U256, U64,
-};
+use web3::types::{ H160};
 
-use std::fs::File;
-use std::io::Read;
 use std::time::Instant;
 use web3::ethabi::ethereum_types::H256;
 use web3::transports::Http;
-use web3::Web3;
 use web3_rust_wrapper::Web3Manager;
 
 #[tokio::main]
@@ -54,7 +43,7 @@ async fn main() -> web3::Result<()> {
         .expect("error creating the router instance");
 
     // call example
-    let account: H160 = web3m.get_first_loaded_account();
+    let account: H160 = web3m.first_loaded_account();
     let balance_of: Uint = web3m
         .query_contract(&contract_instance, "balanceOf", account)
         .await;
@@ -82,38 +71,6 @@ async fn main() -> web3::Result<()> {
         &env::var("EXPLORER").unwrap(),
         tx_id
     );
-    //     println!("Elapsed: {:.2?}", elapsed);
-    //web3m.sent_erc20_token( contract_instance,contract_address, value).await;
-
-    //println!("query_result: {:?}", query_result);
-
-    // let mut i = 0;
-
-    // while i < 2 {
-    //     let now = Instant::now();
-    //
-    //     // example of write contract
-    //
-    //     // to usuario2
-    //     let to_address = "0x64F5F982AFD264d640A52cF0EC72A58103d18FEc";
-    //     // una moneda(esto es porque no soporta floats)
-    //     let value = "1000000000000000000";
-    //     // web3m
-    //     //     .approve_erc20_token(contract_instance.clone(), to_address, value)
-    //     //     .await;
-    //     web3m
-    //         .sent_erc20_token(contract_instance.clone(), to_address, value)
-    //         .await;
-    //     // web3m
-    //     //     .swap_erc20_token(router_instance.clone(), "1000000000000000000")
-    //     //     .await;
-    //
-    //     let elapsed = now.elapsed();
-    //     println!("Elapsed: {:.2?}", elapsed);
-    //     i = i + 1;
-    // }
-
-    // -------------------------
 
     Ok(())
 }

@@ -9,10 +9,10 @@ description = "web3_rust_wrapper"
 
 [dependencies]
 hex = "0.4"
-web3 = "0.17.0"
+web3 = { git = "https://github.com/tomusdrw/rust-web3.git" , features = ["signing"]}
 tokio = { version= "1", features = ["full"] }
 dotenv = "0.15.0"
-secp256k1 = "0.20.3"
+secp256k1 = { version = "0.21"}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 futures = "0.3.19"
@@ -23,3 +23,4 @@ rand = "0.8.4"
 sha256 = "1.0.3"
 clearscreen = "1.0.9"
 chrono = "0.4.19"
+thiserror = "1.0.30"

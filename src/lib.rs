@@ -79,10 +79,17 @@ impl Web3Manager {
         let contract_function = "swapETHForExactTokens".to_string();
         let deadline = self.generate_deadline()?;
 
-        let mut addresses: [H160; 2] = [H160::default(); 2];
+        let mut addresses = Vec::new();
+        let mut addresses2 = Vec::new();
+        for pair in pairs {
+            addresses.push(Address::from_str(pair).unwrap());
+            addresses2.push(Address::from_str(pair).unwrap());
+        }
 
-        addresses[0] = Address::from_str(pairs[0])?;
-        addresses[1] = Address::from_str(pairs[1])?;
+        // todo talk with suizo
+        //let mut addresses: [Address; 2] = [Address::default(); 2];
+        //addresses[0] = Address::from_str(pairs[0])?;
+        //addresses[1] = Address::from_str(pairs[1])?;
 
         let amount_out: U256 = U256::from_dec_str(token_amount).unwrap();
         let parameter_out = (amount_out, addresses);
@@ -98,7 +105,7 @@ impl Web3Manager {
 
         let parameters2 = (
             min_amount_less_slippage,
-            addresses.clone(),
+            addresses2,
             self.first_loaded_account(),
             deadline + 600usize,
         );
@@ -137,7 +144,7 @@ impl Web3Manager {
         for account in &self.accounts {
             let balance = self.web3http.eth().balance(*account, None).await.unwrap();
             self.balances.insert(*account, balance);
-            println!("balance: {:?}", wei_to_eth(balance));
+            println!("balance: {}", wei_to_eth(balance));
         }
     }
 

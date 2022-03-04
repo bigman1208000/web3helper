@@ -11,7 +11,7 @@ use std::process;
 use std::ptr::null;
 use std::str::FromStr;
 use std::time::Instant;
-use std::time::SystemTime;
+use std::time::{SystemTime, SystemTimeError};
 use std::{thread, time::Duration};
 use web3::api::Eth;
 use web3::contract::tokens::{Detokenize, Tokenizable, Tokenize};
@@ -40,7 +40,10 @@ impl<T: ?Sized + Any> InstanceOf for T {}
 
 #[derive(Clone)]
 pub struct Web3Manager {
+    // all the accounts
     accounts: Vec<H160>,
+    // balnces of each accounts
+    balances: HashMap<H160, U256>,
     // public addressess
     pub web3http: Web3<Http>,
     // web3 https instance (for use call or write contract functions)
@@ -66,13 +69,12 @@ impl Web3Manager {
         )?)
     }
 
-    pub fn generate_deadline(&self) -> U256 {
-        U256::from(
+    pub fn generate_deadline(&self) -> Result<U256, SystemTimeError> {
+        Ok(U256::from(
             SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
+                .duration_since(SystemTime::UNIX_EPOCH)?
                 .as_secs(),
-        )
+        ))
     }
 
     // TODO(elsuizo:2022-03-03): documentation here
@@ -83,7 +85,7 @@ impl Web3Manager {
         pairs: &[&str],
     ) -> Result<H256, Box<dyn std::error::Error>> {
         let contract_function = "swapETHForExactTokens".to_string();
-        let deadline = self.generate_deadline();
+        let deadline = self.generate_deadline()?;
 
         let mut addresses: [H160; 2] = [H160::default(); 2];
 
@@ -120,13 +122,13 @@ impl Web3Manager {
                 contract_instance.clone(),
                 contract_function,
                 &parameters2,
-                amount_out_min[0].to_string().as_str(),
+                &amount_out_min[0].to_string(),
             )
             .await)
     }
 
     pub async fn get_out_estimated_tokens_for_tokens(
-        &mut self,
+        &self,
         contract_instance: &Contract<Http>,
         pair_a: &str,
         pair_b: &str,
@@ -143,9 +145,12 @@ impl Web3Manager {
         .await
     }
 
-    // todo
-    pub async fn get_token_balances(&mut self) -> U256 {
-        return U256::from(0);
+    // TODO(elsuizo:2022-03-03): verify this method
+    pub async fn set_token_balances(&mut self) {
+        for account in &self.accounts {
+            let balance = self.web3http.eth().balance(*account, None).await.unwrap();
+            self.balances.insert(*account, balance);
+        }
     }
 
     pub async fn get_nonce(&mut self) -> U256 {
@@ -230,6 +235,7 @@ impl Web3Manager {
 
         // create empty vector for store accounts
         let accounts: Vec<Address> = vec![];
+        let balances: HashMap<H160, U256> = HashMap::new();
         let accounts_map: HashMap<H160, SecretKey> = HashMap::new();
 
         let current_nonce: U256 = U256::from(0);
@@ -240,6 +246,7 @@ impl Web3Manager {
 
         return Web3Manager {
             accounts,
+            balances,
             web3http,
             web3WebSocket,
             accounts_map,
@@ -249,17 +256,17 @@ impl Web3Manager {
         };
     }
 
-    pub async fn gas_price(&mut self) -> U256 {
+    pub async fn gas_price(&self) -> U256 {
         return self.web3http.eth().gas_price().await.unwrap();
     }
 
-    pub async fn get_block(&mut self) -> U64 {
+    pub async fn get_block(&self) -> U64 {
         let result: U64 = self.web3http.eth().block_number().await.unwrap();
         return result;
     }
 
     pub async fn query_contract<P, T>(
-        &mut self,
+        &self,
         contract_instance: &Contract<Http>,
         func: &str,
         params: P,
@@ -297,7 +304,7 @@ impl Web3Manager {
     }
 
     pub fn encode_tx_parameters(
-        &mut self,
+        &self,
         nonce: U256,
         to: Address,
         value: U256,
@@ -305,23 +312,20 @@ impl Web3Manager {
         gas_price: U256,
         data: Bytes,
     ) -> TransactionParameters {
-        let chain_id: Option<u64> = self.chain_id;
-
-        let transact_obj = TransactionParameters {
+        TransactionParameters {
             nonce: Some(nonce),
             to: Some(to),
             value,
             gas_price: Some(gas_price),
             gas,
             data,
-            chain_id,
+            chain_id: self.chain_id,
             ..Default::default()
-        };
-
-        return transact_obj;
+        }
     }
 
-    pub fn encode_tx_data<P>(&mut self, contract: Contract<Http>, func: &str, params: P) -> Bytes
+    // TODO(elsuizo:2022-03-03): add a `Result` here
+    pub fn encode_tx_data<P>(&self, contract: &Contract<Http>, func: &str, params: P) -> Bytes
     where
         P: Tokenize,
     {
@@ -336,7 +340,7 @@ impl Web3Manager {
 
     pub async fn estimate_tx_gas<P>(
         &mut self,
-        contract: Contract<Http>,
+        contract: &Contract<Http>,
         func: &str,
         params: P,
         value: &str,
@@ -406,7 +410,7 @@ impl Web3Manager {
         let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
 
         // 2. encode_tx_data
-        let tx_data: Bytes = self.encode_tx_data(contract_instance.clone(), &func, params.clone());
+        let tx_data: Bytes = self.encode_tx_data(&contract_instance, &func, params.clone());
 
         // 3. build tx parameters
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(

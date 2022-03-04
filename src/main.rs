@@ -20,7 +20,7 @@ async fn main() -> web3::Result<()> {
 
     // load acount from .env file
     web3m
-        .load_accounts(
+        .load_account(
             &env::var("ACCOUNT_ADDRESS").unwrap(),
             &env::var("PRIVATE_TEST_KEY").unwrap(),
         )
@@ -60,7 +60,7 @@ async fn main() -> web3::Result<()> {
     let now = Instant::now();
 
     let tx_id: H256 = web3m
-        .swap_eth_for_exact_tokens(&router_instance, value, &path_address)
+        .swap_eth_for_exact_tokens(account,&router_instance, value, &path_address)
         .await
         .unwrap();
 

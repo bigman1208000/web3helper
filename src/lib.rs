@@ -15,10 +15,11 @@ use web3::types::{
     H160, U256, U64,
 };
 use web3::{Web3};
+use hex_literal::hex;
 
 trait InstanceOf
-where
-    Self: Any,
+    where
+        Self: Any,
 {
     fn instance_of<U: ?Sized + Any>(&self) -> bool {
         TypeId::of::<Self>() == TypeId::of::<U>()
@@ -39,7 +40,7 @@ pub struct Web3Manager {
     // web3 https instance (for use call or write contract functions)
     pub web3web_socket: Web3<WebSocket>,
     // web3 websocket instance (for listen contracts events)
-    accounts_map: HashMap<H160, SecretKey>,
+    accounts_map: HashMap<H160, String>,
     // hashmap (like mapping on solidity) for store public and private keys
     current_nonce: U256,
     current_gas_price: U256,
@@ -70,6 +71,7 @@ impl Web3Manager {
     // TODO(elsuizo:2022-03-03): documentation here
     pub async fn swap_eth_for_exact_tokens(
         &mut self,
+        account: H160,
         contract_instance: &Contract<Http>,
         token_amount: &str,
         pairs: &[&str],
@@ -103,6 +105,7 @@ impl Web3Manager {
 
         Ok(self
             .sign_and_send_tx(
+                account,
                 contract_instance.clone(),
                 contract_function,
                 &parameters2,
@@ -126,7 +129,7 @@ impl Web3Manager {
                 vec![pair_a.to_string(), pair_b.to_string()],
             ),
         )
-        .await
+            .await
     }
 
     // TODO(elsuizo:2022-03-03): verify this method
@@ -159,17 +162,17 @@ impl Web3Manager {
         return nonce;
     }
 
-    pub async fn load_accounts(
+    pub async fn load_account(
         &mut self,
         plain_address: &str,
         plain_private_key: &str,
     ) -> &mut Web3Manager {
         // cast plain pk to sk type
-        let private_key: SecretKey = SecretKey::from_str(plain_private_key).unwrap();
+
         let wallet: H160 = H160::from_str(plain_address).unwrap();
 
         // push on account list
-        self.accounts_map.insert(wallet, private_key);
+        self.accounts_map.insert(wallet, plain_private_key.to_string());
         self.accounts.push(wallet);
 
         // get last nonce from loaded account
@@ -178,23 +181,6 @@ impl Web3Manager {
 
         let gas_price: U256 = self.web3http.eth().gas_price().await.unwrap();
         self.current_gas_price = gas_price;
-
-        //println!("wallet: {:?}", wallet);
-        return self;
-    }
-
-    pub fn load_account(
-        &mut self,
-        plain_address: &str,
-        plain_private_key: &str,
-    ) -> &mut Web3Manager {
-        let private_key: SecretKey = SecretKey::from_str(plain_private_key).unwrap();
-        let wallet: H160 = H160::from_str(plain_address).unwrap();
-
-        self.accounts.push(wallet);
-        println!("wallet: {:?}", wallet);
-        println!("private_key: {:?}", private_key);
-
 
         return self;
     }
@@ -213,7 +199,7 @@ impl Web3Manager {
         // create empty vector for store accounts
         let accounts: Vec<Address> = vec![];
         let balances: HashMap<H160, U256> = HashMap::new();
-        let accounts_map: HashMap<H160, SecretKey> = HashMap::new();
+        let accounts_map: HashMap<H160, String> = HashMap::new();
 
         let current_nonce: U256 = U256::from(0);
         let current_gas_price: U256 = U256::from(0);
@@ -248,9 +234,9 @@ impl Web3Manager {
         func: &str,
         params: P,
     ) -> T
-    where
-        P: Tokenize,
-        T: Tokenizable,
+        where
+            P: Tokenize,
+            T: Tokenizable,
     {
         // query contract
         let query_result: T = contract_instance
@@ -270,8 +256,9 @@ impl Web3Manager {
         return result;
     }
 
-    pub async fn sign_transaction(&self, transact_obj: TransactionParameters) -> SignedTransaction {
-        let private_key = SecretKey::from_str(&env::var("PRIVATE_TEST_KEY").unwrap()).unwrap();
+    pub async fn sign_transaction(&self, account: H160, transact_obj: TransactionParameters) -> SignedTransaction {
+        let plain_pk = self.accounts_map.get(&account).unwrap();
+        let private_key = SecretKey::from_str(plain_pk).unwrap();
 
         self.web3http
             .accounts()
@@ -303,8 +290,8 @@ impl Web3Manager {
 
     // TODO(elsuizo:2022-03-03): add a `Result` here
     pub fn encode_tx_data<P>(&self, contract: &Contract<Http>, func: &str, params: P) -> Bytes
-    where
-        P: Tokenize,
+        where
+            P: Tokenize,
     {
         let data = contract
             .abi()
@@ -322,8 +309,8 @@ impl Web3Manager {
         params: P,
         value: &str,
     ) -> U256
-    where
-        P: Tokenize,
+        where
+            P: Tokenize,
     {
         let out_gas_estimate: U256 = contract
             .estimate_gas(
@@ -346,6 +333,7 @@ impl Web3Manager {
 
     pub async fn approve_erc20_token(
         &mut self,
+        account: H160,
         contract_instance: Contract<Http>,
         spender: &str,
         value: &str,
@@ -356,6 +344,7 @@ impl Web3Manager {
 
         let result: H256 = self
             .sign_and_send_tx(
+                account,
                 contract_instance,
                 contract_function.to_string(),
                 &contract_function_parameters,
@@ -367,13 +356,14 @@ impl Web3Manager {
 
     pub async fn sign_and_send_tx<P: Clone>(
         &mut self,
+        account: H160,
         contract_instance: Contract<Http>,
         func: String,
         params: &P,
         value: &str,
     ) -> H256
-    where
-        P: Tokenize,
+        where
+            P: Tokenize,
     {
         /*
         // estimate gas for call this function with this parameters
@@ -400,7 +390,7 @@ impl Web3Manager {
         );
 
         // 4. sign tx
-        let signed_transaction: SignedTransaction = self.sign_transaction(tx_parameters).await;
+        let signed_transaction: SignedTransaction = self.sign_transaction(account, tx_parameters).await;
 
         // send tx
         let result: H256 = self
@@ -423,6 +413,7 @@ impl Web3Manager {
 
     pub async fn sent_erc20_token(
         &mut self,
+        account: H160,
         contract_instance: Contract<Http>,
         to: &str,
         token_amount: &str,
@@ -435,6 +426,7 @@ impl Web3Manager {
 
         let result: H256 = self
             .sign_and_send_tx(
+                account,
                 contract_instance,
                 contract_function.to_string(),
                 &contract_function_parameters,
@@ -451,7 +443,7 @@ fn wei_to_eth(wei_val: U256) -> f64 {
     return res;
 }
 
-fn split_vector_in_chunks(data: Vec<dyn Any>, chunk_size: usize) -> Vec<Vec<dyn Any>> {
+fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> {
     let mut results = vec![];
     let mut current = vec![];
     for i in data {

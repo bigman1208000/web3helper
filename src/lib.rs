@@ -73,7 +73,7 @@ impl Web3Manager {
         token_amount: &str,
         pairs: &[&str],
     ) -> Result<H256, Box<dyn std::error::Error>> {
-        let contract_function = "swapETHForExactTokens".to_string();
+        let contract_function = "swapETHForExactTokens";
         let deadline = self.generate_deadline()?;
 
         let mut addresses = Vec::new();
@@ -110,7 +110,7 @@ impl Web3Manager {
         Ok(self
             .sign_and_send_tx(
                 account,
-                contract_instance.clone(),
+                contract_instance,
                 contract_function,
                 &parameters2,
                 &amount_out_min[0].to_string(),
@@ -335,7 +335,7 @@ impl Web3Manager {
     pub async fn approve_erc20_token(
         &self,
         account: H160,
-        contract_instance: Contract<Http>,
+        contract_instance: &Contract<Http>,
         spender: &str,
         value: &str,
     ) -> H256 {
@@ -346,7 +346,7 @@ impl Web3Manager {
         self.sign_and_send_tx(
             account,
             contract_instance,
-            contract_function.to_string(),
+            contract_function,
             &contract_function_parameters,
             "0",
         )
@@ -356,8 +356,8 @@ impl Web3Manager {
     pub async fn sign_and_send_tx<P: Clone>(
         &self,
         account: H160,
-        contract_instance: Contract<Http>,
-        func: String,
+        contract_instance: &Contract<Http>,
+        func: &str,
         params: &P,
         value: &str,
     ) -> H256
@@ -416,7 +416,7 @@ impl Web3Manager {
     pub async fn sent_erc20_token(
         &self,
         account: H160,
-        contract_instance: Contract<Http>,
+        contract_instance: &Contract<Http>,
         to: &str,
         token_amount: &str,
     ) -> H256 {
@@ -429,7 +429,7 @@ impl Web3Manager {
         self.sign_and_send_tx(
             account,
             contract_instance,
-            contract_function.to_string(),
+            contract_function,
             &contract_function_parameters,
             "0",
         )

@@ -2,7 +2,7 @@ use secp256k1::SecretKey;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::convert::{From, TryFrom};
-use std::env;
+// use std::env;
 use std::str::FromStr;
 use std::time::{SystemTime, SystemTimeError};
 use web3::contract::tokens::{Tokenizable, Tokenize};
@@ -10,16 +10,13 @@ use web3::contract::{Contract, Options};
 use web3::ethabi::ethereum_types::H256;
 use web3::ethabi::Uint;
 use web3::transports::{Http, WebSocket};
-use web3::types::{
-    Address, Bytes, SignedTransaction, TransactionParameters,
-    H160, U256, U64,
-};
-use web3::{Web3};
-use hex_literal::hex;
+use web3::types::{Address, Bytes, SignedTransaction, TransactionParameters, H160, U256, U64};
+use web3::Web3;
+// use hex_literal::hex;
 
 trait InstanceOf
-    where
-        Self: Any,
+where
+    Self: Any,
 {
     fn instance_of<U: ?Sized + Any>(&self) -> bool {
         TypeId::of::<Self>() == TypeId::of::<U>()
@@ -55,7 +52,7 @@ impl Web3Manager {
     ) -> Result<Contract<Http>, Box<dyn std::error::Error>> {
         Ok(Contract::from_json(
             self.web3http.eth(),
-            Address::from_str(plain_contract_address).unwrap(),
+            Address::from_str(plain_contract_address)?,
             abi_path,
         )?)
     }
@@ -70,7 +67,7 @@ impl Web3Manager {
 
     // TODO(elsuizo:2022-03-03): documentation here
     pub async fn swap_eth_for_exact_tokens(
-        &mut self,
+        &self,
         account: H160,
         contract_instance: &Contract<Http>,
         token_amount: &str,
@@ -136,7 +133,7 @@ impl Web3Manager {
                 vec![pair_a.to_string(), pair_b.to_string()],
             ),
         )
-            .await
+        .await
     }
 
     // TODO(elsuizo:2022-03-03): verify this method
@@ -148,7 +145,7 @@ impl Web3Manager {
         }
     }
 
-    pub async fn last_nonce(&mut self) -> U256 {
+    pub async fn last_nonce(&self) -> U256 {
         /*
         let block: Option<BlockNumber> = BlockNumber::Pending.into();
 
@@ -179,7 +176,8 @@ impl Web3Manager {
         let wallet: H160 = H160::from_str(plain_address).unwrap();
 
         // push on account list
-        self.accounts_map.insert(wallet, plain_private_key.to_string());
+        self.accounts_map
+            .insert(wallet, plain_private_key.to_string());
         self.accounts.push(wallet);
 
         // get last nonce from loaded account
@@ -241,9 +239,9 @@ impl Web3Manager {
         func: &str,
         params: P,
     ) -> T
-        where
-            P: Tokenize,
-            T: Tokenizable,
+    where
+        P: Tokenize,
+        T: Tokenizable,
     {
         // query contract
         let query_result: T = contract_instance
@@ -253,7 +251,7 @@ impl Web3Manager {
         return query_result;
     }
 
-    pub async fn send_raw_transaction(&mut self, raw_transaction: Bytes) -> H256 {
+    pub async fn send_raw_transaction(&self, raw_transaction: Bytes) -> H256 {
         let result: H256 = self
             .web3http
             .eth()
@@ -263,7 +261,11 @@ impl Web3Manager {
         return result;
     }
 
-    pub async fn sign_transaction(&self, account: H160, transact_obj: TransactionParameters) -> SignedTransaction {
+    pub async fn sign_transaction(
+        &self,
+        account: H160,
+        transact_obj: TransactionParameters,
+    ) -> SignedTransaction {
         let plain_pk = self.accounts_map.get(&account).unwrap();
         let private_key = SecretKey::from_str(plain_pk).unwrap();
 
@@ -297,8 +299,8 @@ impl Web3Manager {
 
     // TODO(elsuizo:2022-03-03): add a `Result` here
     pub fn encode_tx_data<P>(&self, contract: &Contract<Http>, func: &str, params: P) -> Bytes
-        where
-            P: Tokenize,
+    where
+        P: Tokenize,
     {
         let data = contract
             .abi()
@@ -310,14 +312,14 @@ impl Web3Manager {
     }
 
     pub async fn estimate_tx_gas<P>(
-        &mut self,
+        &self,
         contract: &Contract<Http>,
         func: &str,
         params: P,
         value: &str,
     ) -> U256
-        where
-            P: Tokenize,
+    where
+        P: Tokenize,
     {
         let out_gas_estimate: U256 = contract
             .estimate_gas(
@@ -334,12 +336,12 @@ impl Web3Manager {
         return out_gas_estimate;
     }
 
-    pub fn first_loaded_account(&mut self) -> H160 {
+    pub fn first_loaded_account(&self) -> H160 {
         return self.accounts[0];
     }
 
     pub async fn approve_erc20_token(
-        &mut self,
+        &self,
         account: H160,
         contract_instance: Contract<Http>,
         spender: &str,
@@ -362,15 +364,15 @@ impl Web3Manager {
     }
 
     pub async fn sign_and_send_tx<P: Clone>(
-        &mut self,
+        &self,
         account: H160,
         contract_instance: Contract<Http>,
         func: String,
         params: &P,
         value: &str,
     ) -> H256
-        where
-            P: Tokenize,
+    where
+        P: Tokenize,
     {
         /*
         // estimate gas for call this function with this parameters
@@ -397,7 +399,8 @@ impl Web3Manager {
         );
 
         // 4. sign tx
-        let signed_transaction: SignedTransaction = self.sign_transaction(account, tx_parameters).await;
+        let signed_transaction: SignedTransaction =
+            self.sign_transaction(account, tx_parameters).await;
 
         // send tx
         let result: H256 = self
@@ -414,12 +417,16 @@ impl Web3Manager {
             result
         );
         */
-        self.current_nonce = self.current_nonce + 1; // todo, check pending nonce dont works
+        // NOTE(elsuizo:2022-03-05): esta es la unica linea de codigo que hace que se necesite un
+        // `&mut self` una de las reglas a seguir en Rust es no utilizar &mut cuando no es
+        // necesario ya que con esa informacion el compilador puede hacer mas optimizaciones y
+        // simplificaciones
+        // self.current_nonce = self.current_nonce + 1; // todo, check pending nonce dont works
         return result;
     }
 
     pub async fn sent_erc20_token(
-        &mut self,
+        &self,
         account: H160,
         contract_instance: Contract<Http>,
         to: &str,

@@ -156,14 +156,11 @@ impl Web3Manager {
             .unwrap();
         */
 
-        let nonce: U256 = self
-            .web3http
+        self.web3http
             .eth()
             .transaction_count(self.first_loaded_account(), None)
             .await
-            .unwrap();
-
-        return nonce;
+            .unwrap()
     }
 
     pub async fn load_account(
@@ -187,7 +184,7 @@ impl Web3Manager {
         let gas_price: U256 = self.web3http.eth().gas_price().await.unwrap();
         self.current_gas_price = gas_price;
 
-        return self;
+        self
     }
 
     pub async fn new(http_url: &str, websocket_url: &str) -> Web3Manager {
@@ -212,7 +209,7 @@ impl Web3Manager {
         let chain_id: Option<u64> =
             Option::Some(u64::try_from(web3http.eth().chain_id().await.unwrap()).unwrap());
 
-        return Web3Manager {
+        Web3Manager {
             accounts,
             balances,
             web3http,
@@ -221,16 +218,15 @@ impl Web3Manager {
             current_nonce,
             current_gas_price,
             chain_id,
-        };
+        }
     }
 
     pub async fn gas_price(&self) -> U256 {
-        return self.web3http.eth().gas_price().await.unwrap();
+        self.web3http.eth().gas_price().await.unwrap()
     }
 
     pub async fn get_block(&self) -> U64 {
-        let result: U64 = self.web3http.eth().block_number().await.unwrap();
-        return result;
+        self.web3http.eth().block_number().await.unwrap()
     }
 
     pub async fn query_contract<P, T>(
@@ -244,21 +240,18 @@ impl Web3Manager {
         T: Tokenizable,
     {
         // query contract
-        let query_result: T = contract_instance
+        contract_instance
             .query(func, params, None, Options::default(), None)
             .await
-            .unwrap();
-        return query_result;
+            .unwrap()
     }
 
     pub async fn send_raw_transaction(&self, raw_transaction: Bytes) -> H256 {
-        let result: H256 = self
-            .web3http
+        self.web3http
             .eth()
             .send_raw_transaction(raw_transaction)
             .await
-            .unwrap();
-        return result;
+            .unwrap()
     }
 
     pub async fn sign_transaction(
@@ -302,13 +295,13 @@ impl Web3Manager {
     where
         P: Tokenize,
     {
-        let data = contract
+        contract
             .abi()
             .function(func)
             .unwrap()
             .encode_input(&params.into_tokens())
-            .unwrap();
-        return data.into();
+            .unwrap()
+            .into()
     }
 
     pub async fn estimate_tx_gas<P>(
@@ -321,7 +314,7 @@ impl Web3Manager {
     where
         P: Tokenize,
     {
-        let out_gas_estimate: U256 = contract
+        contract
             .estimate_gas(
                 func,
                 params,
@@ -332,8 +325,7 @@ impl Web3Manager {
                 },
             )
             .await
-            .unwrap();
-        return out_gas_estimate;
+            .unwrap()
     }
 
     pub fn first_loaded_account(&self) -> H160 {
@@ -351,16 +343,14 @@ impl Web3Manager {
         let contract_function = "approve";
         let contract_function_parameters = (spender_address, U256::from_dec_str(value).unwrap());
 
-        let result: H256 = self
-            .sign_and_send_tx(
-                account,
-                contract_instance,
-                contract_function.to_string(),
-                &contract_function_parameters,
-                "0",
-            )
-            .await;
-        return result;
+        self.sign_and_send_tx(
+            account,
+            contract_instance,
+            contract_function.to_string(),
+            &contract_function_parameters,
+            "0",
+        )
+        .await
     }
 
     pub async fn sign_and_send_tx<P: Clone>(
@@ -403,12 +393,11 @@ impl Web3Manager {
             self.sign_transaction(account, tx_parameters).await;
 
         // send tx
-        let result: H256 = self
-            .web3http
+        self.web3http
             .eth()
             .send_raw_transaction(signed_transaction.raw_transaction)
             .await
-            .unwrap();
+            .unwrap()
 
         /*
         println!(
@@ -422,7 +411,6 @@ impl Web3Manager {
         // necesario ya que con esa informacion el compilador puede hacer mas optimizaciones y
         // simplificaciones
         // self.current_nonce = self.current_nonce + 1; // todo, check pending nonce dont works
-        return result;
     }
 
     pub async fn sent_erc20_token(
@@ -438,23 +426,22 @@ impl Web3Manager {
         let contract_function_parameters =
             (recipient_address, U256::from_dec_str(token_amount).unwrap());
 
-        let result: H256 = self
-            .sign_and_send_tx(
-                account,
-                contract_instance,
-                contract_function.to_string(),
-                &contract_function_parameters,
-                "0",
-            )
-            .await;
-        return result;
+        self.sign_and_send_tx(
+            account,
+            contract_instance,
+            contract_function.to_string(),
+            &contract_function_parameters,
+            "0",
+        )
+        .await
     }
 }
 
+// NOTE(elsuizo:2022-03-05): en Rust no se acostumbra a utilizar `return` explicitamente sino que
+// ya que es un lenguaje basado en expresiones se estila a que la ultima expresion de una funcion
+// es siempre la que retorna y por ello no lleva `;`
 fn wei_to_eth(wei_val: U256) -> f64 {
-    let res: f64 = wei_val.as_u128() as f64;
-    let res: f64 = res / 1_000_000_000_000_000_000.0;
-    return res;
+    wei_val.as_u128() as f64 / 1_000_000_000_000_000_000.0f64
 }
 
 fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> {

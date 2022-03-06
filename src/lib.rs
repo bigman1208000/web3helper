@@ -177,6 +177,9 @@ impl Web3Manager {
             .insert(wallet, plain_private_key.to_string());
         self.accounts.push(wallet);
 
+        // load accounts balances
+        self.set_token_balances().await;
+
         // get last nonce from loaded account
         let nonce: U256 = self.last_nonce().await;
         self.current_nonce = nonce;
@@ -329,7 +332,7 @@ impl Web3Manager {
     }
 
     pub fn first_loaded_account(&self) -> H160 {
-        return self.accounts[0];
+        self.accounts[0]
     }
 
     pub async fn approve_erc20_token(
@@ -376,7 +379,7 @@ impl Web3Manager {
         let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
 
         // 2. encode_tx_data
-        let tx_data: Bytes = self.encode_tx_data(&contract_instance, &func, params.clone());
+        let tx_data: Bytes = self.encode_tx_data(contract_instance, func, params.clone());
 
         // 3. build tx parameters
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(

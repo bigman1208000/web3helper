@@ -461,3 +461,41 @@ fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> 
 
     return results;
 }
+
+fn split_vector_in_chunks2(data: &[Uint], chunk_size: usize) -> Vec<Vec<Uint>> {
+    data.chunks(chunk_size)
+        .map(|element| element.to_vec())
+        .collect()
+}
+
+//-------------------------------------------------------------------------
+//                        tests
+//-------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use super::{split_vector_in_chunks, split_vector_in_chunks2};
+    use crate::U256;
+
+    #[test]
+    fn split_vector_tests() {
+        let vector = vec![
+            U256::from(3usize),
+            U256::from(2usize),
+            U256::from(4usize),
+            U256::from(3usize),
+            U256::from(4usize),
+            U256::from(4usize),
+            U256::from(0usize),
+        ];
+        let vector2 = vector.clone();
+        let result = split_vector_in_chunks(vector, 2);
+        let expected = split_vector_in_chunks2(&vector2, 2);
+        assert_eq!(
+            &result[..],
+            &expected[..],
+            "\nExpected\n{:?}\nfound\n{:?}",
+            &result[..],
+            &expected[..]
+        );
+    }
+}

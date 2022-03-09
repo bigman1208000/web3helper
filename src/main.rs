@@ -1,7 +1,7 @@
 use std::env;
-use web3::contract::{Contract};
+use web3::contract::Contract;
 use web3::ethabi::Uint;
-use web3::types::{ H160};
+use web3::types::H160;
 
 use std::time::Instant;
 use web3::ethabi::ethereum_types::H256;
@@ -33,7 +33,7 @@ async fn main() -> web3::Result<()> {
     let contract_instance: Contract<Http> = web3m
         .instance_contract(contract_address, contract_abi)
         .await
-        .expect("error creating the router instance");
+        .expect("error creating the contract instance");
 
     let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
     let router_abi = include_bytes!("../abi/RouterAbi.json");
@@ -60,7 +60,7 @@ async fn main() -> web3::Result<()> {
     let now = Instant::now();
 
     let tx_id: H256 = web3m
-        .swap_eth_for_exact_tokens(account,&router_instance, value, &path_address)
+        .swap_eth_for_exact_tokens(account, &router_instance, value, &path_address)
         .await
         .unwrap();
 

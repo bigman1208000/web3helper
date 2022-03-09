@@ -77,19 +77,19 @@ impl Web3Manager {
         let deadline = self.generate_deadline()?;
 
         let mut addresses = Vec::new();
-        let mut addresses2 = Vec::new();
         for pair in pairs {
             addresses.push(Address::from_str(pair).unwrap());
-            addresses2.push(Address::from_str(pair).unwrap());
         }
 
+        // NOTE(elsuizo:2022-03-09): claaaro ya entendi aqui las addreeses pueden ser mas de dos
+        // por eso es mejor usar un `Vec`
         // todo talk with suizo
         //let mut addresses: [Address; 2] = [Address::default(); 2];
         //addresses[0] = Address::from_str(pairs[0])?;
         //addresses[1] = Address::from_str(pairs[1])?;
 
         let amount_out: U256 = U256::from_dec_str(token_amount).unwrap();
-        let parameter_out = (amount_out, addresses);
+        let parameter_out = (amount_out, addresses.clone());
         let amount_out_min: Vec<Uint> = self
             .query_contract(contract_instance, "getAmountsOut", parameter_out)
             .await;
@@ -102,7 +102,7 @@ impl Web3Manager {
 
         let parameters2 = (
             min_amount_less_slippage,
-            addresses2,
+            addresses,
             self.first_loaded_account(),
             deadline + 600usize,
         );
@@ -447,7 +447,7 @@ fn wei_to_eth(wei_val: U256) -> f64 {
     wei_val.as_u128() as f64 / 1_000_000_000_000_000_000.0f64
 }
 
-fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> {
+pub fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> {
     let mut results = vec![];
     let mut current = vec![];
     for i in data {
@@ -462,7 +462,7 @@ fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> 
     return results;
 }
 
-fn split_vector_in_chunks2(data: &[Uint], chunk_size: usize) -> Vec<Vec<Uint>> {
+pub fn split_vector_in_chunks2(data: &[Uint], chunk_size: usize) -> Vec<Vec<Uint>> {
     data.chunks(chunk_size)
         .map(|element| element.to_vec())
         .collect()

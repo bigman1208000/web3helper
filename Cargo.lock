@@ -1402,6 +1402,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "rust_web3_helper"
+version = "0.2.0"
+dependencies = [
+ "chrono",
+ "clearscreen",
+ "colored",
+ "dotenv",
+ "futures",
+ "hex",
+ "hex-literal",
+ "open",
+ "rand 0.8.5",
+ "secp256k1",
+ "serde",
+ "serde_json",
+ "sha256",
+ "sysinfo",
+ "thiserror",
+ "tokio",
+ "web3",
+]
+
+[[package]]
 name = "rustc-hex"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2071,29 +2094,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
-]
-
-[[package]]
-name = "web3_rust_wrapper"
-version = "0.2.0"
-dependencies = [
- "chrono",
- "clearscreen",
- "colored",
- "dotenv",
- "futures",
- "hex",
- "hex-literal",
- "open",
- "rand 0.8.5",
- "secp256k1",
- "serde",
- "serde_json",
- "sha256",
- "sysinfo",
- "thiserror",
- "tokio",
- "web3",
 ]
 
 [[package]]

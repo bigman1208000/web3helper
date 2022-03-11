@@ -145,6 +145,8 @@ impl Web3Manager {
         }
     }
 
+    // Counts the number of exececuted transactions by the loaded wallet to set the 'nonce' param for current transacction
+    // Cuenta el número de transacciones se han ejecutado con la wallet cargada para establecer el parámetro 'nonce' en la transacción actual
     pub async fn last_nonce(&self) -> U256 {
         /*
         let block: Option<BlockNumber> = BlockNumber::Pending.into();
@@ -224,10 +226,14 @@ impl Web3Manager {
         }
     }
 
+    // Get a estimation on medium gas price in network
+    // Obtiene un precio del gas  estimado en la red
     pub async fn gas_price(&self) -> U256 {
         self.web3http.eth().gas_price().await.unwrap()
     }
 
+    // Get the current block in the network
+    // Obtiene el número del bloque actual en la red
     pub async fn get_block(&self) -> U64 {
         self.web3http.eth().block_number().await.unwrap()
     }
@@ -249,6 +255,9 @@ impl Web3Manager {
             .unwrap()
     }
 
+    // To execute a function in a contract it has to be sent as a raw transaction which is the basic transaction format
+    // Para ejecutar cualquier transacción en un contrato ha de ser mandada como una transacción de tipo raw, 
+    // que es el formato básico de las transaaciones
     pub async fn send_raw_transaction(&self, raw_transaction: Bytes) -> H256 {
         self.web3http
             .eth()
@@ -257,6 +266,8 @@ impl Web3Manager {
             .unwrap()
     }
 
+    // The transactions must be signed with the private key of the wallet that executes it
+    // Las transacciones han de ser firmadas con la clave privada de la cartera que la ejecuta
     pub async fn sign_transaction(
         &self,
         account: H160,
@@ -444,6 +455,8 @@ impl Web3Manager {
 // ya que es un lenguaje basado en expresiones se estila a que la ultima expresion de una funcion
 // es siempre la que retorna y por ello no lleva `;`
 fn wei_to_eth(wei_val: U256) -> f64 {
+    // ethereum does not have fractional numbers so every amount is expressed in wei, to show the amount in ether this function is used
+    // ethereum no tiene numeros fraccionarios por lo que toda cantidad se expresa en wei, para mostrar la cantidad en ether se utiliza esta función
     wei_val.as_u128() as f64 / 1_000_000_000_000_000_000.0f64
 }
 

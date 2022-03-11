@@ -6,7 +6,7 @@ use web3::types::H160;
 use std::time::Instant;
 use web3::ethabi::ethereum_types::H256;
 use web3::transports::Http;
-use rust_web3_helper::Web3Manager;
+use web3_rust_wrapper::Web3Manager;
 
 #[tokio::main]
 async fn main() -> web3::Result<()> {

@@ -73,23 +73,23 @@ impl Web3Manager {
         token_amount: &str,
         pairs: &[&str],
     ) -> Result<H256, Box<dyn std::error::Error>> {
-        let contract_function = "swapETHForExactTokens".to_string();
+        let contract_function = "swapETHForExactTokens";
         let deadline = self.generate_deadline()?;
 
         let mut addresses = Vec::new();
-        let mut addresses2 = Vec::new();
         for pair in pairs {
             addresses.push(Address::from_str(pair).unwrap());
-            addresses2.push(Address::from_str(pair).unwrap());
         }
 
+        // NOTE(elsuizo:2022-03-09): claaaro ya entendi aqui las addreeses pueden ser mas de dos
+        // por eso es mejor usar un `Vec`
         // todo talk with suizo
         //let mut addresses: [Address; 2] = [Address::default(); 2];
         //addresses[0] = Address::from_str(pairs[0])?;
         //addresses[1] = Address::from_str(pairs[1])?;
 
         let amount_out: U256 = U256::from_dec_str(token_amount).unwrap();
-        let parameter_out = (amount_out, addresses);
+        let parameter_out = (amount_out, addresses.clone());
         let amount_out_min: Vec<Uint> = self
             .query_contract(contract_instance, "getAmountsOut", parameter_out)
             .await;
@@ -102,7 +102,7 @@ impl Web3Manager {
 
         let parameters2 = (
             min_amount_less_slippage,
-            addresses2,
+            addresses,
             self.first_loaded_account(),
             deadline + 600usize,
         );
@@ -110,7 +110,7 @@ impl Web3Manager {
         Ok(self
             .sign_and_send_tx(
                 account,
-                contract_instance.clone(),
+                contract_instance,
                 contract_function,
                 &parameters2,
                 &amount_out_min[0].to_string(),
@@ -156,14 +156,11 @@ impl Web3Manager {
             .unwrap();
         */
 
-        let nonce: U256 = self
-            .web3http
+        self.web3http
             .eth()
             .transaction_count(self.first_loaded_account(), None)
             .await
-            .unwrap();
-
-        return nonce;
+            .unwrap()
     }
 
     pub async fn load_account(
@@ -180,6 +177,9 @@ impl Web3Manager {
             .insert(wallet, plain_private_key.to_string());
         self.accounts.push(wallet);
 
+        // load accounts balances
+        self.set_token_balances().await;
+
         // get last nonce from loaded account
         let nonce: U256 = self.last_nonce().await;
         self.current_nonce = nonce;
@@ -187,7 +187,7 @@ impl Web3Manager {
         let gas_price: U256 = self.web3http.eth().gas_price().await.unwrap();
         self.current_gas_price = gas_price;
 
-        return self;
+        self
     }
 
     pub async fn new(http_url: &str, websocket_url: &str) -> Web3Manager {
@@ -212,7 +212,7 @@ impl Web3Manager {
         let chain_id: Option<u64> =
             Option::Some(u64::try_from(web3http.eth().chain_id().await.unwrap()).unwrap());
 
-        return Web3Manager {
+        Web3Manager {
             accounts,
             balances,
             web3http,
@@ -221,16 +221,15 @@ impl Web3Manager {
             current_nonce,
             current_gas_price,
             chain_id,
-        };
+        }
     }
 
     pub async fn gas_price(&self) -> U256 {
-        return self.web3http.eth().gas_price().await.unwrap();
+        self.web3http.eth().gas_price().await.unwrap()
     }
 
     pub async fn get_block(&self) -> U64 {
-        let result: U64 = self.web3http.eth().block_number().await.unwrap();
-        return result;
+        self.web3http.eth().block_number().await.unwrap()
     }
 
     pub async fn query_contract<P, T>(
@@ -244,21 +243,18 @@ impl Web3Manager {
         T: Tokenizable,
     {
         // query contract
-        let query_result: T = contract_instance
+        contract_instance
             .query(func, params, None, Options::default(), None)
             .await
-            .unwrap();
-        return query_result;
+            .unwrap()
     }
 
     pub async fn send_raw_transaction(&self, raw_transaction: Bytes) -> H256 {
-        let result: H256 = self
-            .web3http
+        self.web3http
             .eth()
             .send_raw_transaction(raw_transaction)
             .await
-            .unwrap();
-        return result;
+            .unwrap()
     }
 
     pub async fn sign_transaction(
@@ -302,13 +298,13 @@ impl Web3Manager {
     where
         P: Tokenize,
     {
-        let data = contract
+        contract
             .abi()
             .function(func)
             .unwrap()
             .encode_input(&params.into_tokens())
-            .unwrap();
-        return data.into();
+            .unwrap()
+            .into()
     }
 
     pub async fn estimate_tx_gas<P>(
@@ -321,7 +317,7 @@ impl Web3Manager {
     where
         P: Tokenize,
     {
-        let out_gas_estimate: U256 = contract
+        contract
             .estimate_gas(
                 func,
                 params,
@@ -332,18 +328,17 @@ impl Web3Manager {
                 },
             )
             .await
-            .unwrap();
-        return out_gas_estimate;
+            .unwrap()
     }
 
     pub fn first_loaded_account(&self) -> H160 {
-        return self.accounts[0];
+        self.accounts[0]
     }
 
     pub async fn approve_erc20_token(
         &self,
         account: H160,
-        contract_instance: Contract<Http>,
+        contract_instance: &Contract<Http>,
         spender: &str,
         value: &str,
     ) -> H256 {
@@ -351,23 +346,21 @@ impl Web3Manager {
         let contract_function = "approve";
         let contract_function_parameters = (spender_address, U256::from_dec_str(value).unwrap());
 
-        let result: H256 = self
-            .sign_and_send_tx(
-                account,
-                contract_instance,
-                contract_function.to_string(),
-                &contract_function_parameters,
-                "0",
-            )
-            .await;
-        return result;
+        self.sign_and_send_tx(
+            account,
+            contract_instance,
+            contract_function,
+            &contract_function_parameters,
+            "0",
+        )
+        .await
     }
 
     pub async fn sign_and_send_tx<P: Clone>(
         &self,
         account: H160,
-        contract_instance: Contract<Http>,
-        func: String,
+        contract_instance: &Contract<Http>,
+        func: &str,
         params: &P,
         value: &str,
     ) -> H256
@@ -386,7 +379,7 @@ impl Web3Manager {
         let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
 
         // 2. encode_tx_data
-        let tx_data: Bytes = self.encode_tx_data(&contract_instance, &func, params.clone());
+        let tx_data: Bytes = self.encode_tx_data(contract_instance, func, params.clone());
 
         // 3. build tx parameters
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(
@@ -403,12 +396,11 @@ impl Web3Manager {
             self.sign_transaction(account, tx_parameters).await;
 
         // send tx
-        let result: H256 = self
-            .web3http
+        self.web3http
             .eth()
             .send_raw_transaction(signed_transaction.raw_transaction)
             .await
-            .unwrap();
+            .unwrap()
 
         /*
         println!(
@@ -422,13 +414,12 @@ impl Web3Manager {
         // necesario ya que con esa informacion el compilador puede hacer mas optimizaciones y
         // simplificaciones
         // self.current_nonce = self.current_nonce + 1; // todo, check pending nonce dont works
-        return result;
     }
 
     pub async fn sent_erc20_token(
         &self,
         account: H160,
-        contract_instance: Contract<Http>,
+        contract_instance: &Contract<Http>,
         to: &str,
         token_amount: &str,
     ) -> H256 {
@@ -438,26 +429,25 @@ impl Web3Manager {
         let contract_function_parameters =
             (recipient_address, U256::from_dec_str(token_amount).unwrap());
 
-        let result: H256 = self
-            .sign_and_send_tx(
-                account,
-                contract_instance,
-                contract_function.to_string(),
-                &contract_function_parameters,
-                "0",
-            )
-            .await;
-        return result;
+        self.sign_and_send_tx(
+            account,
+            contract_instance,
+            contract_function,
+            &contract_function_parameters,
+            "0",
+        )
+        .await
     }
 }
 
+// NOTE(elsuizo:2022-03-05): en Rust no se acostumbra a utilizar `return` explicitamente sino que
+// ya que es un lenguaje basado en expresiones se estila a que la ultima expresion de una funcion
+// es siempre la que retorna y por ello no lleva `;`
 fn wei_to_eth(wei_val: U256) -> f64 {
-    let res: f64 = wei_val.as_u128() as f64;
-    let res: f64 = res / 1_000_000_000_000_000_000.0;
-    return res;
+    wei_val.as_u128() as f64 / 1_000_000_000_000_000_000.0f64
 }
 
-fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> {
+pub fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> {
     let mut results = vec![];
     let mut current = vec![];
     for i in data {
@@ -470,4 +460,42 @@ fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> 
     results.push(current);
 
     return results;
+}
+
+pub fn split_vector_in_chunks2(data: &[Uint], chunk_size: usize) -> Vec<Vec<Uint>> {
+    data.chunks(chunk_size)
+        .map(|element| element.to_vec())
+        .collect()
+}
+
+//-------------------------------------------------------------------------
+//                        tests
+//-------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use super::{split_vector_in_chunks, split_vector_in_chunks2};
+    use crate::U256;
+
+    #[test]
+    fn split_vector_tests() {
+        let vector = vec![
+            U256::from(3usize),
+            U256::from(2usize),
+            U256::from(4usize),
+            U256::from(3usize),
+            U256::from(4usize),
+            U256::from(4usize),
+            U256::from(0usize),
+        ];
+        let vector2 = vector.clone();
+        let result = split_vector_in_chunks(vector, 2);
+        let expected = split_vector_in_chunks2(&vector2, 2);
+        assert_eq!(
+            &result[..],
+            &expected[..],
+            "\nExpected\n{:?}\nfound\n{:?}",
+            &result[..],
+            &expected[..]
+        );
+    }
 }

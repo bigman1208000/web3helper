@@ -431,16 +431,16 @@ impl Web3Manager {
     where
         P: Tokenize,
     {
-        /*
+        
         // estimate gas for call this function with this parameters
         // increase 200ms execution time, we use high gas available
         // gas not used goes back to contract
         let estimated_tx_gas: U256 = self
-            .estimate_tx_gas(contract_instance.clone(), &func, params.clone(), value)
+            .estimate_tx_gas(&contract_instance.clone(), &func, params.clone(), value)
             .await;
-        */
+        
 
-        let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
+        //let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
 
         // 2. encode_tx_data
         let tx_data: Bytes = self.encode_tx_data(contract_instance, func, params.clone());

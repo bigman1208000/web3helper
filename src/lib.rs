@@ -65,6 +65,61 @@ impl Web3Manager {
         ))
     }
 
+        // TODO(elsuizo:2022-03-03): documentation here
+    pub async fn swap_tokens_for_exact_tokens(
+        &self,
+        account: H160,
+        contract_instance: &Contract<Http>,
+        token_amount: &str,
+        pairs: &[&str],
+        slippage: usize
+    ) -> Result<H256, Box<dyn std::error::Error>> {
+        let contract_function = "swapTokensForExactTokens";
+        let deadline = self.generate_deadline()?;
+
+        let mut addresses = Vec::new();
+        for pair in pairs {
+            addresses.push(Address::from_str(pair).unwrap());
+        }
+
+        // NOTE(elsuizo:2022-03-09): claaaro ya entendi aqui las addreeses pueden ser mas de dos
+        // por eso es mejor usar un `Vec`
+        // todo talk with suizo
+        //let mut addresses: [Address; 2] = [Address::default(); 2];
+        //addresses[0] = Address::from_str(pairs[0])?;
+        //addresses[1] = Address::from_str(pairs[1])?;
+
+        let amount_out: U256 = U256::from_dec_str(token_amount).unwrap();
+        let parameter_out = (amount_out, addresses.clone());
+        let amount_out_min: Vec<Uint> = self
+            .query_contract(contract_instance, "getAmountsOut", parameter_out)
+            .await;
+
+        let min_amount = U256::from(amount_out_min[1].as_u128());
+        let min_amount_less_slippage = min_amount - ((min_amount * slippage) / 100usize);
+
+        let parameters2 = (
+            amount_out,
+            min_amount_less_slippage,
+            addresses,
+            self.first_loaded_account(),
+            deadline + 600usize,
+        );
+
+        println!("amount_out: {:?}", amount_out);
+        println!("min_amount_less_slippage: {:?}", min_amount_less_slippage);
+
+        Ok(self
+            .sign_and_send_tx(
+                account,
+                contract_instance,
+                contract_function,
+                &parameters2,
+                &U256::from("0").to_string(),
+            )
+            .await)
+    }
+
     // TODO(elsuizo:2022-03-03): documentation here
     pub async fn swap_eth_for_exact_tokens(
         &self,
@@ -72,6 +127,7 @@ impl Web3Manager {
         contract_instance: &Contract<Http>,
         token_amount: &str,
         pairs: &[&str],
+        slippage: usize
     ) -> Result<H256, Box<dyn std::error::Error>> {
         let contract_function = "swapETHForExactTokens";
         let deadline = self.generate_deadline()?;
@@ -94,10 +150,7 @@ impl Web3Manager {
             .query_contract(contract_instance, "getAmountsOut", parameter_out)
             .await;
 
-        let slippage = 2usize;
-
         let min_amount = U256::from(amount_out_min[1].as_u128());
-
         let min_amount_less_slippage = min_amount - ((min_amount * slippage) / 100usize);
 
         let parameters2 = (
@@ -446,6 +499,8 @@ impl Web3Manager {
 fn wei_to_eth(wei_val: U256) -> f64 {
     wei_val.as_u128() as f64 / 1_000_000_000_000_000_000.0f64
 }
+
+
 
 pub fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> {
     let mut results = vec![];

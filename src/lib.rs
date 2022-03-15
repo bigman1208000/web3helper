@@ -5,7 +5,7 @@ use std::convert::{From, TryFrom};
 // use std::env;
 use std::str::FromStr;
 use std::time::{SystemTime, SystemTimeError};
-use web3::contract::tokens::{Tokenizable, Tokenize};
+use web3::contract::tokens::{Detokenize, Tokenizable, Tokenize};
 use web3::contract::{Contract, Options};
 use web3::ethabi::ethereum_types::H256;
 use web3::ethabi::Uint;
@@ -65,14 +65,14 @@ impl Web3Manager {
         ))
     }
 
-        // TODO(elsuizo:2022-03-03): documentation here
+    // TODO(elsuizo:2022-03-03): documentation here
     pub async fn swap_tokens_for_exact_tokens(
         &self,
         account: H160,
         contract_instance: &Contract<Http>,
         token_amount: &str,
         pairs: &[&str],
-        slippage: usize
+        slippage: usize,
     ) -> Result<H256, Box<dyn std::error::Error>> {
         let contract_function = "swapTokensForExactTokens";
         let deadline = self.generate_deadline()?;
@@ -127,7 +127,7 @@ impl Web3Manager {
         contract_instance: &Contract<Http>,
         token_amount: &str,
         pairs: &[&str],
-        slippage: usize
+        slippage: usize,
     ) -> Result<H256, Box<dyn std::error::Error>> {
         let contract_function = "swapETHForExactTokens";
         let deadline = self.generate_deadline()?;
@@ -299,17 +299,17 @@ impl Web3Manager {
     ) -> T
     where
         P: Tokenize,
-        T: Tokenizable,
+        T: Detokenize,
     {
         // query contract
         contract_instance
-            .query(func, params, None, Options::default(), None)
+            .query(func, params, None, Default::default(), None)
             .await
             .unwrap()
     }
 
     // To execute a function in a contract it has to be sent as a raw transaction which is the basic transaction format
-    // Para ejecutar cualquier transacción en un contrato ha de ser mandada como una transacción de tipo raw, 
+    // Para ejecutar cualquier transacción en un contrato ha de ser mandada como una transacción de tipo raw,
     // que es el formato básico de las transaaciones
     pub async fn send_raw_transaction(&self, raw_transaction: Bytes) -> H256 {
         self.web3http
@@ -431,14 +431,12 @@ impl Web3Manager {
     where
         P: Tokenize,
     {
-        
         // estimate gas for call this function with this parameters
         // increase 200ms execution time, we use high gas available
         // gas not used goes back to contract
         let estimated_tx_gas: U256 = self
             .estimate_tx_gas(&contract_instance.clone(), &func, params.clone(), value)
             .await;
-        
 
         //let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
 
@@ -512,8 +510,6 @@ fn wei_to_eth(wei_val: U256) -> f64 {
     // ethereum no tiene numeros fraccionarios por lo que toda cantidad se expresa en wei, para mostrar la cantidad en ether se utiliza esta función
     wei_val.as_u128() as f64 / 1_000_000_000_000_000_000.0f64
 }
-
-
 
 pub fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> {
     let mut results = vec![];

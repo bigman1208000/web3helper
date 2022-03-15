@@ -29,9 +29,9 @@ impl<T: ?Sized + Any> InstanceOf for T {}
 #[derive(Clone)]
 pub struct Web3Manager {
     // all the accounts
-    accounts: Vec<H160>,
+    pub accounts: Vec<H160>,
     // balances of each accounts
-    balances: HashMap<H160, U256>,
+    pub balances: HashMap<H160, U256>,
     // public addresses
     pub web3http: Web3<Http>,
     // web3 https instance (for use call or write contract functions)
@@ -55,6 +55,10 @@ impl Web3Manager {
             Address::from_str(plain_contract_address)?,
             abi_path,
         )?)
+    }
+
+    pub fn get_account_balance(&self, account: H160) -> U256 {
+        self.balances[&account]
     }
 
     pub fn generate_deadline(&self) -> Result<U256, SystemTimeError> {

@@ -1,7 +1,7 @@
 use std::env;
 use web3::contract::Contract;
 use web3::ethabi::Uint;
-use web3::types::H160;
+use web3::types::{H160, U256};
 
 use std::time::Instant;
 use web3::ethabi::ethereum_types::H256;
@@ -29,11 +29,19 @@ async fn main() -> web3::Result<()> {
     // init contract
     // usuario1
     let contract_abi = include_bytes!("../abi/TokenAbi.json");
-    let contract_address = "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684";
+    let contract_address = "0x883ccFF843a0bd58783903041ed7f02D97Ce4513";
     let contract_instance: Contract<Http> = web3m
         .instance_contract(contract_address, contract_abi)
         .await
         .expect("error creating the contract instance");
+
+
+    let busd_abi = include_bytes!("../abi/TokenAbi.json");
+    let busd_address = "0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7";
+    let busd_instance: Contract<Http> = web3m
+        .instance_contract(busd_address, busd_abi)
+        .await
+        .expect("error creating the contract instance");    
 
     let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
     let router_abi = include_bytes!("../abi/RouterAbi.json");
@@ -59,25 +67,33 @@ async fn main() -> web3::Result<()> {
 
     // call example
     let account: H160 = web3m.first_loaded_account();
-    let balance_of: Uint = web3m
+    let token_balance: Uint = web3m
         .query_contract(&contract_instance, "balanceOf", account)
         .await;
+    println!("token_balance: {}", token_balance);    
 
-    println!("balance_of tokens: {:?}", balance_of);
+    let busd_balance: Uint = web3m
+    .query_contract(&busd_instance, "balanceOf", account)
+    .await;    
+    println!("busd_balance: {}", busd_balance);   
     // -------------------------
 
     let value = "10000000000000000";
+    //println!("value: {:?}", wei_to_eth(value));
+ 
 
-    let token_a = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
-    let token_b = "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684";
-    let path_address: Vec<&str> = vec![token_a, token_b];
+    let path_address: Vec<&str> = vec![
+        "0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7", // BUSD
+        "0x883ccFF843a0bd58783903041ed7f02D97Ce4513"  // TOKEN
+        ];
 
     let now = Instant::now();
+    let slippage = 3usize;
 
     
 
     let tx_id: H256 = web3m
-        .swap_eth_for_exact_tokens(account, &router_instance, value, &path_address)
+        .swap_tokens_for_exact_tokens(account, &router_instance, value, &path_address, slippage)
         .await
         .unwrap();
 
@@ -90,4 +106,23 @@ async fn main() -> web3::Result<()> {
     );
 
     Ok(())
+}
+
+pub fn wei_to_eth(wei_val: U256) -> f64 {
+    let res = wei_val.as_u128() as f64;
+    res / 1_000_000_000_000_000_000.0
+}
+
+pub fn eth_to_wei(eth_val: f64) -> U256 {
+    let result = eth_val * 1_000_000_000_000_000_000.0;
+    let result = result as u128;
+    U256::from(result)
+}
+
+fn wei_to_eth2(val: &str) -> U256 {
+
+    let v: f64 = val.parse().unwrap();
+    let a:U256 = U256::from_dec_str(v.clone().to_string().as_str()).unwrap();
+    //et k = wei_to_eth(a);
+    return a;
 }

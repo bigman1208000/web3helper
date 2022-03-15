@@ -65,6 +65,61 @@ impl Web3Manager {
         ))
     }
 
+        // TODO(elsuizo:2022-03-03): documentation here
+    pub async fn swap_tokens_for_exact_tokens(
+        &self,
+        account: H160,
+        contract_instance: &Contract<Http>,
+        token_amount: &str,
+        pairs: &[&str],
+        slippage: usize
+    ) -> Result<H256, Box<dyn std::error::Error>> {
+        let contract_function = "swapTokensForExactTokens";
+        let deadline = self.generate_deadline()?;
+
+        let mut addresses = Vec::new();
+        for pair in pairs {
+            addresses.push(Address::from_str(pair).unwrap());
+        }
+
+        // NOTE(elsuizo:2022-03-09): claaaro ya entendi aqui las addreeses pueden ser mas de dos
+        // por eso es mejor usar un `Vec`
+        // todo talk with suizo
+        //let mut addresses: [Address; 2] = [Address::default(); 2];
+        //addresses[0] = Address::from_str(pairs[0])?;
+        //addresses[1] = Address::from_str(pairs[1])?;
+
+        let amount_out: U256 = U256::from_dec_str(token_amount).unwrap();
+        let parameter_out = (amount_out, addresses.clone());
+        let amount_out_min: Vec<Uint> = self
+            .query_contract(contract_instance, "getAmountsOut", parameter_out)
+            .await;
+
+        let min_amount = U256::from(amount_out_min[1].as_u128());
+        let min_amount_less_slippage = min_amount - ((min_amount * slippage) / 100usize);
+
+        let parameters2 = (
+            amount_out,
+            min_amount_less_slippage,
+            addresses,
+            self.first_loaded_account(),
+            deadline + 600usize,
+        );
+
+        println!("amount_out: {:?}", amount_out);
+        println!("min_amount_less_slippage: {:?}", min_amount_less_slippage);
+
+        Ok(self
+            .sign_and_send_tx(
+                account,
+                contract_instance,
+                contract_function,
+                &parameters2,
+                &U256::from("0").to_string(),
+            )
+            .await)
+    }
+
     // TODO(elsuizo:2022-03-03): documentation here
     pub async fn swap_eth_for_exact_tokens(
         &self,
@@ -72,6 +127,7 @@ impl Web3Manager {
         contract_instance: &Contract<Http>,
         token_amount: &str,
         pairs: &[&str],
+        slippage: usize
     ) -> Result<H256, Box<dyn std::error::Error>> {
         let contract_function = "swapETHForExactTokens";
         let deadline = self.generate_deadline()?;
@@ -94,10 +150,7 @@ impl Web3Manager {
             .query_contract(contract_instance, "getAmountsOut", parameter_out)
             .await;
 
-        let slippage = 2usize;
-
         let min_amount = U256::from(amount_out_min[1].as_u128());
-
         let min_amount_less_slippage = min_amount - ((min_amount * slippage) / 100usize);
 
         let parameters2 = (
@@ -145,6 +198,8 @@ impl Web3Manager {
         }
     }
 
+    // Counts the number of exececuted transactions by the loaded wallet to set the 'nonce' param for current transacction
+    // Cuenta el número de transacciones se han ejecutado con la wallet cargada para establecer el parámetro 'nonce' en la transacción actual
     pub async fn last_nonce(&self) -> U256 {
         /*
         let block: Option<BlockNumber> = BlockNumber::Pending.into();
@@ -224,10 +279,14 @@ impl Web3Manager {
         }
     }
 
+    // Get a estimation on medium gas price in network
+    // Obtiene un precio del gas  estimado en la red
     pub async fn gas_price(&self) -> U256 {
         self.web3http.eth().gas_price().await.unwrap()
     }
 
+    // Get the current block in the network
+    // Obtiene el número del bloque actual en la red
     pub async fn get_block(&self) -> U64 {
         self.web3http.eth().block_number().await.unwrap()
     }
@@ -249,6 +308,9 @@ impl Web3Manager {
             .unwrap()
     }
 
+    // To execute a function in a contract it has to be sent as a raw transaction which is the basic transaction format
+    // Para ejecutar cualquier transacción en un contrato ha de ser mandada como una transacción de tipo raw, 
+    // que es el formato básico de las transaaciones
     pub async fn send_raw_transaction(&self, raw_transaction: Bytes) -> H256 {
         self.web3http
             .eth()
@@ -257,6 +319,8 @@ impl Web3Manager {
             .unwrap()
     }
 
+    // The transactions must be signed with the private key of the wallet that executes it
+    // Las transacciones han de ser firmadas con la clave privada de la cartera que la ejecuta
     pub async fn sign_transaction(
         &self,
         account: H160,
@@ -367,16 +431,16 @@ impl Web3Manager {
     where
         P: Tokenize,
     {
-        /*
+        
         // estimate gas for call this function with this parameters
         // increase 200ms execution time, we use high gas available
         // gas not used goes back to contract
         let estimated_tx_gas: U256 = self
-            .estimate_tx_gas(contract_instance.clone(), &func, params.clone(), value)
+            .estimate_tx_gas(&contract_instance.clone(), &func, params.clone(), value)
             .await;
-        */
+        
 
-        let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
+        //let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
 
         // 2. encode_tx_data
         let tx_data: Bytes = self.encode_tx_data(contract_instance, func, params.clone());
@@ -444,8 +508,12 @@ impl Web3Manager {
 // ya que es un lenguaje basado en expresiones se estila a que la ultima expresion de una funcion
 // es siempre la que retorna y por ello no lleva `;`
 fn wei_to_eth(wei_val: U256) -> f64 {
+    // ethereum does not have fractional numbers so every amount is expressed in wei, to show the amount in ether this function is used
+    // ethereum no tiene numeros fraccionarios por lo que toda cantidad se expresa en wei, para mostrar la cantidad en ether se utiliza esta función
     wei_val.as_u128() as f64 / 1_000_000_000_000_000_000.0f64
 }
+
+
 
 pub fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> {
     let mut results = vec![];

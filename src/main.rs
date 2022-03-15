@@ -42,6 +42,21 @@ async fn main() -> web3::Result<()> {
         .await
         .expect("error creating the router instance");
 
+
+    let EAC_aggregator_proxy_address = "0x887f177CBED2cf555a64e7bF125E1825EB69dB82";
+    let EAC_aggregator_proxy_abi = include_bytes!("../abi/EACAggregatorProxy.json");
+    let EAC_aggregator_proxy_instance: Contract<Http> = web3m
+            .instance_contract(EAC_aggregator_proxy_address, EAC_aggregator_proxy_abi)
+            .await
+            .expect("error creating the router instance");
+
+       
+    let latest_round_data: Uint = web3m
+    .query_contract(&EAC_aggregator_proxy_instance, "latestRoundData", ())
+    .await;
+    println!("latestRoundData: {:?}", latest_round_data);
+
+
     // call example
     let account: H160 = web3m.first_loaded_account();
     let balance_of: Uint = web3m
@@ -58,6 +73,8 @@ async fn main() -> web3::Result<()> {
     let path_address: Vec<&str> = vec![token_a, token_b];
 
     let now = Instant::now();
+
+    
 
     let tx_id: H256 = web3m
         .swap_eth_for_exact_tokens(account, &router_instance, value, &path_address)

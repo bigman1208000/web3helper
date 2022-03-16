@@ -1,3 +1,4 @@
+mod bnb_main_net;
 use std::env;
 use web3::contract::Contract;
 use web3::ethabi::Uint;

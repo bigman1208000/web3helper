@@ -1,3 +1,6 @@
+mod bnb_main_net;
+mod rinkeby_testnet;
+pub mod traits;
 use secp256k1::SecretKey;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
@@ -5,7 +8,7 @@ use std::convert::{From, TryFrom};
 // use std::env;
 use std::str::FromStr;
 use std::time::{SystemTime, SystemTimeError};
-use web3::contract::tokens::{Detokenize, Tokenizable, Tokenize};
+use web3::contract::tokens::{Detokenize, Tokenize};
 use web3::contract::{Contract, Options};
 use web3::ethabi::ethereum_types::H256;
 use web3::ethabi::Uint;
@@ -14,6 +17,7 @@ use web3::types::{Address, Bytes, SignedTransaction, TransactionParameters, H160
 use web3::Web3;
 // use hex_literal::hex;
 
+// use chainlink_interface::EthereumFeeds;
 trait InstanceOf
 where
     Self: Any,
@@ -503,6 +507,20 @@ impl Web3Manager {
             "0",
         )
         .await
+    }
+
+    //-------------------------------------------------------------------------
+    //                        chainlink inplementations
+    //-------------------------------------------------------------------------
+
+    async fn access_controller(&self, feed: impl crate::traits::GetAddress) -> Address {
+        let proxy_abi = include_bytes!("../abi/EACAggregatorProxy.json");
+        let proxy_instance: Contract<Http> = self
+            .instance_contract(&feed.get_address(), proxy_abi)
+            .await
+            .expect("error creating the router instance");
+        self.query_contract(&proxy_instance, "accessController", ())
+            .await
     }
 }
 

@@ -1,4 +1,7 @@
 // TODO(elsuizo:2022-03-15): verificar que las direcciones quedaron bien
+
+use crate::traits::GetAddress;
+
 #[allow(non_camel_case_types)]
 pub enum BnbMainNet {
     XBC_Index,
@@ -148,7 +151,7 @@ pub enum BnbMainNet {
 }
 
 #[allow(non_snake_case)]
-impl BnbMainNet {
+impl GetAddress for BnbMainNet {
     fn get_address(&self) -> String {
         match self {
             XBC_Index => "0x5a9bf29ccC64e8146580D0A9Db00942fE239567D".to_string(),

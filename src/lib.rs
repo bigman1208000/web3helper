@@ -1,5 +1,8 @@
-mod bnb_main_net;
-mod rinkeby_testnet;
+#![allow(non_snake_case)]
+#![allow(non_camel_case_types)]
+#![allow(dead_code)]
+// mod bnb_main_net;
+// mod rinkeby_testnet;
 pub mod traits;
 use secp256k1::SecretKey;
 use std::any::{Any, TypeId};
@@ -518,18 +521,16 @@ impl Web3Manager {
         let proxy_instance: Contract<Http> = self
             .instance_contract(&feed.get_address(), proxy_abi)
             .await
-            .expect("error creating the router instance");
+            .expect("error creating the proxy instance");
         self.query_contract(&proxy_instance, "accessController", ())
             .await
     }
 }
 
-// NOTE(elsuizo:2022-03-05): en Rust no se acostumbra a utilizar `return` explicitamente sino que
-// ya que es un lenguaje basado en expresiones se estila a que la ultima expresion de una funcion
-// es siempre la que retorna y por ello no lleva `;`
 fn wei_to_eth(wei_val: U256) -> f64 {
-    // ethereum does not have fractional numbers so every amount is expressed in wei, to show the amount in ether this function is used
-    // ethereum no tiene numeros fraccionarios por lo que toda cantidad se expresa en wei, para mostrar la cantidad en ether se utiliza esta función
+    // ethereum does not have fractional numbers so every amount is expressed in wei, to show the
+    // amount in ether this function is used ethereum no tiene numeros fraccionarios por lo que
+    // toda cantidad se expresa en wei, para mostrar la cantidad en ether se utiliza esta función
     wei_val.as_u128() as f64 / 1_000_000_000_000_000_000.0f64
 }
 

@@ -8,6 +8,7 @@ use secp256k1::SecretKey;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::convert::{From, TryFrom};
+use std::env;
 // use std::env;
 use std::str::FromStr;
 use std::time::{SystemTime, SystemTimeError};
@@ -470,19 +471,21 @@ impl Web3Manager {
             self.sign_transaction(account, tx_parameters).await;
 
         // send tx
-        self.web3http
+        let tx_id: H256 = self.web3http
             .eth()
             .send_raw_transaction(signed_transaction.raw_transaction)
             .await
-            .unwrap()
+            .unwrap();
 
-        /*
+
         println!(
             "Transaction successful with hash: {}{:?}",
             &env::var("EXPLORER").unwrap(),
-            result
+            tx_id
         );
-        */
+
+        return tx_id;
+  
         // NOTE(elsuizo:2022-03-05): esta es la unica linea de codigo que hace que se necesite un
         // `&mut self` una de las reglas a seguir en Rust es no utilizar &mut cuando no es
         // necesario ya que con esa informacion el compilador puede hacer mas optimizaciones y

@@ -205,7 +205,7 @@ impl Web3Manager {
         for account in &self.accounts {
             let balance = self.web3http.eth().balance(*account, None).await.unwrap();
             self.balances.insert(*account, balance);
-            println!("balance: {}", wei_to_eth(balance));
+            //println!("balance: {}", wei_to_eth(balance));
         }
     }
 

@@ -413,9 +413,9 @@ impl Web3Manager {
     }
 
     pub async fn approve_erc20_token(
-        &self,
+        &mut self,
         account: H160,
-        contract_instance: &Contract<Http>,
+        contract_instance: Contract<Http>,
         spender: &str,
         value: &str,
     ) -> H256 {
@@ -423,14 +423,16 @@ impl Web3Manager {
         let contract_function = "approve";
         let contract_function_parameters = (spender_address, U256::from_dec_str(value).unwrap());
 
-        self.sign_and_send_tx(
-            account,
-            contract_instance,
-            contract_function,
-            &contract_function_parameters,
-            "0",
-        )
-        .await
+        let result: H256 = self
+            .sign_and_send_tx(
+                account,
+                &contract_instance,
+                &contract_function.to_string(),
+                &contract_function_parameters,
+                "0",
+            )
+            .await;
+        return result;
     }
 
     pub async fn sign_and_send_tx<P: Clone>(

@@ -1,4 +1,5 @@
-mod bnb_main_net;
+// mod bnb_main_net;
+// use bnb_main_net::BnbMainNet;
 use std::env;
 use web3::contract::Contract;
 use web3::ethabi::Uint;
@@ -27,6 +28,8 @@ async fn main() -> web3::Result<()> {
         )
         .await;
 
+    // chainlink accessController method from the BNB Chain feed DF / USD
+    // let address = web3m.access_controller(BnbMainNet::DF_USD);
     // init contract
     // usuario1
     let contract_abi = include_bytes!("../abi/TokenAbi.json");

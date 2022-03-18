@@ -18,7 +18,7 @@ async fn main() -> web3::Result<()> {
     let web3_websocket_url =
         "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/testnet/ws";
 
-    let mut web3m: Web3Manager = Web3Manager::new(web3_http_url, web3_websocket_url).await;
+    let mut web3m: Web3Manager = Web3Manager::new(web3_http_url, web3_websocket_url, 43113).await;
 
     // load acount from .env file
     web3m

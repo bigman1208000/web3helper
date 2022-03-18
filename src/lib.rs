@@ -256,7 +256,7 @@ impl Web3Manager {
         self
     }
 
-    pub async fn new(http_url: &str, websocket_url: &str) -> Web3Manager {
+    pub async fn new(http_url: &str, websocket_url: &str, u64chain_id: u64) -> Web3Manager {
         // init web3 http connection
         let web3http: Web3<Http> = web3::Web3::new(web3::transports::Http::new(http_url).unwrap());
 
@@ -275,8 +275,9 @@ impl Web3Manager {
         let current_nonce: U256 = U256::from(0);
         let current_gas_price: U256 = U256::from(0);
 
-        let chain_id: Option<u64> =
-            Option::Some(u64::try_from(web3http.eth().chain_id().await.unwrap()).unwrap());
+        //let chain_id: Option<u64> = Option::Some(u64::try_from(web3http.eth().chain_id().await.unwrap()).unwrap());
+        let chain_id: Option<u64> = Option::Some(u64::try_from(u64chain_id).unwrap());
+
 
         Web3Manager {
             accounts,

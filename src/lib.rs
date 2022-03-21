@@ -1,3 +1,4 @@
+pub mod ethereum_mainnet;
 pub mod rinkeby_testnet;
 pub mod traits;
 use secp256k1::SecretKey;

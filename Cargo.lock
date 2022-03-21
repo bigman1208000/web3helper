@@ -2066,6 +2066,7 @@ dependencies = [
  "futures",
  "hex",
  "hex-literal",
+ "lazy_static",
  "open",
  "rand 0.8.5",
  "secp256k1",

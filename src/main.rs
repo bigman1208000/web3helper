@@ -102,6 +102,10 @@ async fn main() -> web3::Result<()> {
         tx_id
     );
 
+    println!("listen....");
+    web3m.listenContractEvents("0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7").await;
+    println!("end");
+
     Ok(())
 }
 

@@ -4,6 +4,7 @@
 // mod bnb_main_net;
 // mod rinkeby_testnet;
 pub mod traits;
+use futures::{StreamExt, future};
 use secp256k1::SecretKey;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
@@ -17,8 +18,11 @@ use web3::contract::{Contract, Options};
 use web3::ethabi::ethereum_types::H256;
 use web3::ethabi::Uint;
 use web3::transports::{Http, WebSocket};
-use web3::types::{Address, Bytes, SignedTransaction, TransactionParameters, H160, U256, U64};
+use web3::types::{Address, Bytes, SignedTransaction, TransactionParameters, H160, U256, U64, FilterBuilder, Log};
 use web3::Web3;
+use hex_literal::hex;
+use web3::api::SubscriptionStream;
+
 // use hex_literal::hex;
 
 // use chainlink_interface::EthereumFeeds;
@@ -532,6 +536,41 @@ impl Web3Manager {
             .expect("error creating the proxy instance");
         self.query_contract(&proxy_instance, "accessController", ())
             .await
+    }
+
+    pub async fn listenContractEvents(
+        &self,
+        contractAddress: &str,
+    ) {
+
+        /*
+        let filter = FilterBuilder::default()
+        .address(vec![contract.address()])
+        .topics(
+            Some(vec![hex!(
+                "d282f389399565f3671145f5916e51652b60eee8e5c759293a2f5771b8ddfd2e"
+            )
+            .into()]),
+            None,
+            None,
+            None,
+        )
+        .build();
+         */
+
+        let filter = FilterBuilder::default()
+        .address(vec![Address::from_str(contractAddress).unwrap()])
+        .topics(None, None, None, None,
+        )
+        .build();
+
+        let sub: SubscriptionStream<WebSocket, Log>= self.web3web_socket.eth_subscribe().subscribe_logs(filter).await.unwrap();
+        sub.for_each(|log| {
+            println!("got log: {:?}", log);
+            println!("");
+            future::ready(())
+        })
+        .await;
     }
 }
 

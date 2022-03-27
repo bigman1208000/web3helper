@@ -1,6 +1,7 @@
 pub mod ethereum_mainnet;
 pub mod rinkeby_testnet;
 pub mod traits;
+
 use futures::{StreamExt, future};
 use secp256k1::SecretKey;
 use std::any::{Any, TypeId};
@@ -13,7 +14,7 @@ use std::time::{SystemTime, SystemTimeError};
 use web3::contract::tokens::{Detokenize, Tokenize};
 use web3::contract::{Contract, Options};
 use web3::ethabi::ethereum_types::H256;
-use web3::ethabi::Uint;
+use web3::ethabi::{Int, Uint};
 use web3::transports::{Http, WebSocket};
 use web3::types::{Address, Bytes, SignedTransaction, TransactionParameters, H160, U256, U64, FilterBuilder, Log};
 use web3::Web3;
@@ -24,8 +25,8 @@ use web3::api::SubscriptionStream;
 
 // use chainlink_interface::EthereumFeeds;
 trait InstanceOf
-where
-    Self: Any,
+    where
+        Self: Any,
 {
     fn instance_of<U: ?Sized + Any>(&self) -> bool {
         TypeId::of::<Self>() == TypeId::of::<U>()
@@ -185,7 +186,7 @@ impl Web3Manager {
                 vec![pair_a.to_string(), pair_b.to_string()],
             ),
         )
-        .await
+            .await
     }
 
     // TODO(elsuizo:2022-03-03): verify this method
@@ -293,9 +294,9 @@ impl Web3Manager {
         func: &str,
         params: P,
     ) -> Result<T, web3::contract::Error>
-    where
-        P: Tokenize,
-        T: Detokenize,
+        where
+            P: Tokenize,
+            T: Detokenize,
     {
         // query contract
         contract_instance
@@ -354,8 +355,8 @@ impl Web3Manager {
 
     // TODO(elsuizo:2022-03-03): add a `Result` here
     pub fn encode_tx_data<P>(&self, contract: &Contract<Http>, func: &str, params: P) -> Bytes
-    where
-        P: Tokenize,
+        where
+            P: Tokenize,
     {
         contract
             .abi()
@@ -373,8 +374,8 @@ impl Web3Manager {
         params: P,
         value: &str,
     ) -> U256
-    where
-        P: Tokenize,
+        where
+            P: Tokenize,
     {
         contract
             .estimate_gas(
@@ -425,8 +426,8 @@ impl Web3Manager {
         params: &P,
         value: &str,
     ) -> H256
-    where
-        P: Tokenize,
+        where
+            P: Tokenize,
     {
         // estimate gas for call this function with this parameters
         // increase 200ms execution time, we use high gas available
@@ -471,7 +472,7 @@ impl Web3Manager {
         );
 
         return tx_id;
-  
+
         // NOTE(elsuizo:2022-03-05): esta es la unica linea de codigo que hace que se necesite un
         // `&mut self` una de las reglas a seguir en Rust es no utilizar &mut cuando no es
         // necesario ya que con esa informacion el compilador puede hacer mas optimizaciones y
@@ -499,15 +500,30 @@ impl Web3Manager {
             &contract_function_parameters,
             "0",
         )
-        .await
+            .await
     }
 
     //-------------------------------------------------------------------------
     //                        chainlink inplementations
     //-------------------------------------------------------------------------
 
-    // TODO(elsuizo:2022-03-20): sacar el unwrap y hacer un custom error para esto
-    pub async fn access_controller(
+    pub async fn get_latest_price(
+        &self,
+        network: impl crate::traits::GetAddress,
+        pair_address: &str,
+    ) -> Int {
+        let proxy_abi = include_bytes!("../abi/EACAggregatorProxy.json");
+        let proxy_instance: Contract<Http> = self
+            .instance_contract(&network.get_address(pair_address).unwrap(), proxy_abi)
+            .await
+            .expect("error creating the proxy instance");
+
+        let res: (Uint, Int, Uint, Uint, Uint) = self.query_contract(&proxy_instance, "latestRoundData", ()).await.unwrap();
+        res.1
+    }
+
+    /*
+        pub async fn access_controller(
         &self,
         feed: impl crate::traits::GetAddress,
         pair: &str,
@@ -520,12 +536,12 @@ impl Web3Manager {
         self.query_contract(&proxy_instance, "accessController", ())
             .await
     }
+     */
 
-    pub async fn listenContractEvents(
+    pub async fn listen_contract_events(
         &self,
-        contractAddress: &str,
+        contract_address: &str,
     ) {
-
         /*
         let filter = FilterBuilder::default()
         .address(vec![contract.address()])
@@ -542,18 +558,17 @@ impl Web3Manager {
          */
 
         let filter = FilterBuilder::default()
-        .address(vec![Address::from_str(contractAddress).unwrap()])
-        .topics(None, None, None, None,
-        )
-        .build();
+            .address(vec![Address::from_str(contract_address).unwrap()])
+            .topics(None, None, None, None,
+            )
+            .build();
 
-        let sub: SubscriptionStream<WebSocket, Log>= self.web3web_socket.eth_subscribe().subscribe_logs(filter).await.unwrap();
+        let sub: SubscriptionStream<WebSocket, Log> = self.web3web_socket.eth_subscribe().subscribe_logs(filter).await.unwrap();
         sub.for_each(|log| {
             println!("got log: {:?}", log);
-            println!("");
             future::ready(())
         })
-        .await;
+            .await;
     }
 }
 

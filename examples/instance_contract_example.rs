@@ -12,7 +12,7 @@ async fn main() -> web3::Result<()> {
     let web3_websocket_url =
         "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/testnet/ws";
 
-    let mut web3m: Web3Manager = Web3Manager::new(web3_http_url, web3_websocket_url, 43113).await;
+    let mut web3m: Web3Manager = Web3Manager::new(web3_http_url, web3_websocket_url, 97).await;
 
     // load acount from .env file
     web3m
@@ -48,7 +48,7 @@ async fn main() -> web3::Result<()> {
     println!("busd_balance: {}", busd_balance);
 
     println!("listen....");
-    web3m.listenContractEvents("0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7").await;
+    web3m.listen_contract_events("0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7").await;
     println!("end");
 
     Ok(())

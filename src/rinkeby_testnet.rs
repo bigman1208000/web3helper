@@ -8,19 +8,13 @@ lazy_static! {
         map.insert("ATOM / ETH", "0xc751E86208F0F8aF2d5CD0e29716cA7AD98B5eF5");
         map.insert("ATOM / USD", "0x3539F2E214d8BC7E611056383323aC6D1b01943c");
         map.insert("AUD / USD", "0x21c095d2aDa464A294956eA058077F14F66535af");
-        map.insert(
-            "Arb Seq Status",
-            "0x13E99C19833F557672B67C70508061A2E1e54162",
-        );
+        map.insert("Arb Seq Status","0x13E99C19833F557672B67C70508061A2E1e54162");
         map.insert("BAT / USD", "0x031dB56e01f82f20803059331DC6bEe9b17F7fC9");
         map.insert("BNB / USD", "0xcf0f51ca2cDAecb464eeE4227f5295F2384F84ED");
         map.insert("BTC / ETH", "0x2431452A0010a43878bF198e170F6319Af6d27F4");
         map.insert("BTC / USD", "0xECe365B379E1dD183B20fc5f022230C044d51404");
         map.insert("CHF / USD", "0x5e601CF5EF284Bcd12decBDa189479413284E1d2");
-        map.insert(
-            "CacheGold PoR",
-            "0x46F030f9A570aBB4BF21bAc93042d97059bd0350",
-        );
+        map.insert("CacheGold PoR","0x46F030f9A570aBB4BF21bAc93042d97059bd0350");
         map.insert("DAI / ETH", "0x74825DbC8BF76CC4e9494d0ecB210f676Efa001D");
         map.insert("DAI / USD", "0x2bA49Aaa16E6afD2a993473cfB70Fa8559B523cF");
         map.insert("ETH / USD", "0x8A753747A1Fa494EC906cE90E9f37563A8AF630e");

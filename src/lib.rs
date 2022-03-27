@@ -1,8 +1,5 @@
-#![allow(non_snake_case)]
-#![allow(non_camel_case_types)]
-#![allow(dead_code)]
-// mod bnb_main_net;
-// mod rinkeby_testnet;
+pub mod ethereum_mainnet;
+pub mod rinkeby_testnet;
 pub mod traits;
 use futures::{StreamExt, future};
 use secp256k1::SecretKey;
@@ -38,7 +35,7 @@ where
 // implement this trait for every type that implements `Any` (which is most types)
 impl<T: ?Sized + Any> InstanceOf for T {}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Web3Manager {
     // all the accounts
     pub accounts: Vec<H160>,
@@ -98,18 +95,11 @@ impl Web3Manager {
             addresses.push(Address::from_str(pair).unwrap());
         }
 
-        // NOTE(elsuizo:2022-03-09): claaaro ya entendi aqui las addreeses pueden ser mas de dos
-        // por eso es mejor usar un `Vec`
-        // todo talk with suizo
-        //let mut addresses: [Address; 2] = [Address::default(); 2];
-        //addresses[0] = Address::from_str(pairs[0])?;
-        //addresses[1] = Address::from_str(pairs[1])?;
-
         let amount_out: U256 = U256::from_dec_str(token_amount).unwrap();
         let parameter_out = (amount_out, addresses.clone());
         let amount_out_min: Vec<Uint> = self
             .query_contract(contract_instance, "getAmountsOut", parameter_out)
-            .await;
+            .await?;
 
         let min_amount = U256::from(amount_out_min[1].as_u128());
         let min_amount_less_slippage = min_amount - ((min_amount * slippage) / 100usize);
@@ -153,18 +143,11 @@ impl Web3Manager {
             addresses.push(Address::from_str(pair).unwrap());
         }
 
-        // NOTE(elsuizo:2022-03-09): claaaro ya entendi aqui las addreeses pueden ser mas de dos
-        // por eso es mejor usar un `Vec`
-        // todo talk with suizo
-        //let mut addresses: [Address; 2] = [Address::default(); 2];
-        //addresses[0] = Address::from_str(pairs[0])?;
-        //addresses[1] = Address::from_str(pairs[1])?;
-
         let amount_out: U256 = U256::from_dec_str(token_amount).unwrap();
         let parameter_out = (amount_out, addresses.clone());
         let amount_out_min: Vec<Uint> = self
             .query_contract(contract_instance, "getAmountsOut", parameter_out)
-            .await;
+            .await?;
 
         let min_amount = U256::from(amount_out_min[1].as_u128());
         let min_amount_less_slippage = min_amount - ((min_amount * slippage) / 100usize);
@@ -193,7 +176,7 @@ impl Web3Manager {
         pair_a: &str,
         pair_b: &str,
         amount: &str,
-    ) -> U256 {
+    ) -> Result<U256, web3::contract::Error> {
         self.query_contract(
             contract_instance,
             "getAmountsOut",
@@ -210,28 +193,16 @@ impl Web3Manager {
         for account in &self.accounts {
             let balance = self.web3http.eth().balance(*account, None).await.unwrap();
             self.balances.insert(*account, balance);
-            //println!("balance: {}", wei_to_eth(balance));
         }
     }
 
     // Counts the number of exececuted transactions by the loaded wallet to set the 'nonce' param for current transacction
     // Cuenta el número de transacciones se han ejecutado con la wallet cargada para establecer el parámetro 'nonce' en la transacción actual
-    pub async fn last_nonce(&self) -> U256 {
-        /*
-        let block: Option<BlockNumber> = BlockNumber::Pending.into();
-
-        let nonce: U256 = self.web3http
-            .eth()
-            .transaction_count(self.accounts[0], block)
-            .await
-            .unwrap();
-        */
-
+    pub async fn last_nonce(&self) -> Result<U256, web3::Error> {
         self.web3http
             .eth()
             .transaction_count(self.first_loaded_account(), None)
             .await
-            .unwrap()
     }
 
     pub async fn load_account(
@@ -252,10 +223,18 @@ impl Web3Manager {
         self.set_token_balances().await;
 
         // get last nonce from loaded account
-        let nonce: U256 = self.last_nonce().await;
+        let nonce: U256 = self
+            .last_nonce()
+            .await
+            .expect("error getting the nonce parameter");
         self.current_nonce = nonce;
 
-        let gas_price: U256 = self.web3http.eth().gas_price().await.unwrap();
+        let gas_price: U256 = self
+            .web3http
+            .eth()
+            .gas_price()
+            .await
+            .expect("error getting the gas price parameter");
         self.current_gas_price = gas_price;
 
         self
@@ -298,14 +277,14 @@ impl Web3Manager {
 
     // Get a estimation on medium gas price in network
     // Obtiene un precio del gas  estimado en la red
-    pub async fn gas_price(&self) -> U256 {
-        self.web3http.eth().gas_price().await.unwrap()
+    pub async fn gas_price(&self) -> Result<U256, web3::Error> {
+        self.web3http.eth().gas_price().await
     }
 
     // Get the current block in the network
     // Obtiene el número del bloque actual en la red
-    pub async fn get_block(&self) -> U64 {
-        self.web3http.eth().block_number().await.unwrap()
+    pub async fn get_block(&self) -> Result<U64, web3::Error> {
+        self.web3http.eth().block_number().await
     }
 
     pub async fn query_contract<P, T>(
@@ -313,7 +292,7 @@ impl Web3Manager {
         contract_instance: &Contract<Http>,
         func: &str,
         params: P,
-    ) -> T
+    ) -> Result<T, web3::contract::Error>
     where
         P: Tokenize,
         T: Detokenize,
@@ -322,7 +301,6 @@ impl Web3Manager {
         contract_instance
             .query(func, params, None, Default::default(), None)
             .await
-            .unwrap()
     }
 
     // To execute a function in a contract it has to be sent as a raw transaction which is the basic transaction format
@@ -528,10 +506,15 @@ impl Web3Manager {
     //                        chainlink inplementations
     //-------------------------------------------------------------------------
 
-    async fn access_controller(&self, feed: impl crate::traits::GetAddress) -> Address {
+    // TODO(elsuizo:2022-03-20): sacar el unwrap y hacer un custom error para esto
+    pub async fn access_controller(
+        &self,
+        feed: impl crate::traits::GetAddress,
+        pair: &str,
+    ) -> Result<Address, web3::contract::Error> {
         let proxy_abi = include_bytes!("../abi/EACAggregatorProxy.json");
         let proxy_instance: Contract<Http> = self
-            .instance_contract(&feed.get_address(), proxy_abi)
+            .instance_contract(&feed.get_address(pair).unwrap(), proxy_abi)
             .await
             .expect("error creating the proxy instance");
         self.query_contract(&proxy_instance, "accessController", ())
@@ -574,7 +557,7 @@ impl Web3Manager {
     }
 }
 
-fn wei_to_eth(wei_val: U256) -> f64 {
+pub fn wei_to_eth(wei_val: U256) -> f64 {
     // ethereum does not have fractional numbers so every amount is expressed in wei, to show the
     // amount in ether this function is used ethereum no tiene numeros fraccionarios por lo que
     // toda cantidad se expresa en wei, para mostrar la cantidad en ether se utiliza esta función

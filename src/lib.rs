@@ -136,7 +136,7 @@ impl Web3Manager {
         pairs: &[&str],
         slippage: usize,
     ) -> Result<H256, Box<dyn std::error::Error>> {
-        let contract_function = "swapETHForExactTokens";
+        let contract_function = "swapExactAVAXForTokens";
         let deadline = self.generate_deadline()?;
 
         let mut addresses = Vec::new();

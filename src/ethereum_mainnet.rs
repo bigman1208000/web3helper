@@ -1,3 +1,4 @@
+use alloc::string::String;
 use crate::traits::GetAddress;
 use lazy_static::lazy_static;
 use std::collections::HashMap;

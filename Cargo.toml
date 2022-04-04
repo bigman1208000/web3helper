@@ -4,6 +4,8 @@ version = "0.2.8"
 edition = "2018"
 license = "MIT"
 description = "web3_rust_wrapper"
+keywords = ["macro", "match"]
+categories = ["rust-patterns"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,14 +13,13 @@ description = "web3_rust_wrapper"
 hex = "0.4"
 web3 = "0.18.0"
 tokio = { version= "1", features = ["full"] }
-secp256k1 = { version = "0.21"}
+secp256k1 = { version = "0.21", features = ["rand"]}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 futures = "0.3.19"
 open = "2.0.2"
 colored = "2.0.0"
 sysinfo = "0.23.0"
-rand = "0.8.4"
 sha256 = "1.0.3"
 clearscreen = "1.0.9"
 chrono = "0.4.19"

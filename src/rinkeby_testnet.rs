@@ -1,6 +1,6 @@
 use crate::traits::GetAddress;
 use lazy_static::lazy_static;
-use std::collections::HashMap;
+use ::std::collections::HashMap;
 
 lazy_static! {
     static ref RINKE_BY_TESTNET: HashMap<&'static str, &'static str> = {

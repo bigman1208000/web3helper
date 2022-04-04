@@ -1,9 +1,14 @@
+extern crate alloc;
+
 pub mod ethereum_mainnet;
 pub mod rinkeby_testnet;
 pub mod traits;
 
+use alloc::boxed::Box;
+use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
 use futures::{StreamExt, future};
-use secp256k1::SecretKey;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::convert::{From, TryFrom};
@@ -18,10 +23,81 @@ use web3::ethabi::{Int, Uint};
 use web3::transports::{Http, WebSocket};
 use web3::types::{Address, Bytes, SignedTransaction, TransactionParameters, H160, U256, U64, FilterBuilder, Log};
 use web3::Web3;
-use hex_literal::hex;
 use web3::api::SubscriptionStream;
+use secp256k1::{rand::{rngs, SeedableRng}, PublicKey, SecretKey};
+use secp256k1::rand::Rng;
+use secp256k1::rand::rngs::StdRng;
+use web3::signing::keccak256;
 
 // use hex_literal::hex;
+
+/// Emulates a `switch` statement.
+///
+/// The syntax is similar to `match` except that every left-side expression is
+/// interpreted as an expression rather than a pattern. The expression to
+/// compare against must be at the beginning with a semicolon. A default case
+/// is required at the end with a `_`, similar to `match`.
+///
+/// Example:
+///
+/// ```
+/// use switch_statement::switch;
+/// use web3_rust_wrapper::switch;
+///
+/// const A: u32 = 1 << 0;
+/// const B: u32 = 1 << 1;
+///
+/// let n = 3;
+/// let val = switch! { n;
+///     A => false,
+///     // this is a bitwise OR
+///     A | B => true,
+///     _ => false,
+/// };
+/// assert!(val);
+/// ```
+#[macro_export]
+macro_rules! switch {
+    ($v:expr; $($a:expr => $b:expr,)* _ => $e:expr $(,)?) => {
+        match $v {
+            $(v if v == $a => $b,)*
+            _ => $e,
+        }
+    };
+}
+
+#[cfg(test)]
+mod tests {
+    const A: u32 = 1 << 0;
+    const B: u32 = 1 << 1;
+    const C: u32 = 1 << 2;
+    const D: u32 = 1 << 3;
+
+    #[test]
+    fn it_works() {
+        assert!(switch! { 1; _ => true });
+
+        let v = switch! { A | B;
+            A => false,
+            B | C => false,
+            A | B => true,
+            C | D => {
+                unreachable!();
+            },
+            _ => false,
+        };
+        assert!(v);
+    }
+
+    #[test]
+    fn no_trailing_comma() {
+        let v = switch! { 1;
+            1 => true,
+            _ => false
+        };
+        assert!(v);
+    }
+}
 
 // use chainlink_interface::EthereumFeeds;
 trait InstanceOf
@@ -67,6 +143,53 @@ impl Web3Manager {
         )?)
     }
 
+    pub fn generate_keypair() -> (SecretKey, PublicKey) {
+        let secp = secp256k1::Secp256k1::new();
+
+        let n2: u64 = 1;
+        println!("first random u64 is: {}", n2);
+        let mut rng: StdRng = rngs::StdRng::seed_from_u64(n2);
+        let random_number: u64 = rng.gen::<u64>();
+        println!("With seed {}, the first random u64 is: {}", n2, random_number);
+
+        secp.generate_keypair(&mut rng)
+    }
+
+    pub fn public_key_address(public_key: &PublicKey) -> Address {
+        let public_key = public_key.serialize_uncompressed();
+        debug_assert_eq!(public_key[0], 0x04);
+        let hash = keccak256(&public_key[1..]);
+        Address::from_slice(&hash[12..])
+    }
+
+    pub fn generate_keypairs(n: u8) -> Vec<(SecretKey, PublicKey)> {
+        let mut keypairs: Vec<(SecretKey, PublicKey)> = Vec::new();
+        for _ in 0..n {
+            keypairs.push(Web3Manager::generate_keypair());
+        }
+        keypairs
+    }
+
+
+    pub fn wei_to_eth(wei_val: U256) -> f64 {
+        let res = wei_val.as_u128() as f64;
+        res / 1_000_000_000_000_000_000.0
+    }
+
+    pub fn eth_to_wei(eth_val: f64) -> U256 {
+        let result = eth_val * 1_000_000_000_000_000_000.0;
+        let result = result as u128;
+        U256::from(result)
+    }
+
+    fn wei_to_eth2(val: &str) -> U256 {
+
+        let v: f64 = val.parse().unwrap();
+        let a:U256 = U256::from_dec_str(v.clone().to_string().as_str()).unwrap();
+        //et k = wei_to_eth(a);
+        return a;
+    }
+
     pub fn get_account_balance(&self, account: H160) -> U256 {
         self.balances[&account]
     }
@@ -81,7 +204,7 @@ impl Web3Manager {
 
     // TODO(elsuizo:2022-03-03): documentation here
     pub async fn swap_tokens_for_exact_tokens(
-        &self,
+        &mut self,
         account: H160,
         contract_instance: &Contract<Http>,
         token_amount: &str,
@@ -129,15 +252,44 @@ impl Web3Manager {
 
     // TODO(elsuizo:2022-03-03): documentation here
     pub async fn swap_eth_for_exact_tokens(
-        &self,
+        &mut self,
         account: H160,
-        contract_instance: &Contract<Http>,
+        router_address: &str,
         token_amount: &str,
         pairs: &[&str],
         slippage: usize,
     ) -> Result<H256, Box<dyn std::error::Error>> {
-        let contract_function = "swapExactAVAXForTokens";
-        let deadline = self.generate_deadline()?;
+        let mut router_abi_path = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
+        let mut contract_function: &str = "swapExactETHForTokens";
+
+        switch! { router_address;
+            "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3" => {
+                println!("Input is equal to 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3");
+                router_abi_path = "../abi/PancakeRouterAbi.json";
+                contract_function = "swapExactETHForTokens";
+            },
+                "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3" => {
+                println!("Input is equal to 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3");
+                router_abi_path = "../abi/PancakeRouterAbi.json";
+                contract_function = "swapExactETHForTokens";
+            },
+                "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3" => {
+                println!("Input is equal to 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3");
+                router_abi_path = "../abi/PancakeRouterAbi.json";
+                contract_function = "swapExactETHForTokens";
+            },
+            _ => {
+                println!("Input is equal to 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3");
+                router_abi_path = "../abi/PancakeRouterAbi.json";
+                contract_function = "swapExactETHForTokens";
+            },
+        }
+
+        let router_abi = include_bytes!("../abi/PancakeRouterAbi.json");
+        let router_instance: Contract<Http> = self
+            .instance_contract(router_address, router_abi)
+            .await
+            .expect("error creating the router instance");
 
         let mut addresses = Vec::new();
         for pair in pairs {
@@ -147,12 +299,13 @@ impl Web3Manager {
         let amount_out: U256 = U256::from_dec_str(token_amount).unwrap();
         let parameter_out = (amount_out, addresses.clone());
         let amount_out_min: Vec<Uint> = self
-            .query_contract(contract_instance, "getAmountsOut", parameter_out)
+            .query_contract(&router_instance, "getAmountsOut", parameter_out)
             .await?;
 
         let min_amount = U256::from(amount_out_min[1].as_u128());
         let min_amount_less_slippage = min_amount - ((min_amount * slippage) / 100usize);
 
+        let deadline = self.generate_deadline()?;
         let parameters2 = (
             min_amount_less_slippage,
             addresses,
@@ -163,7 +316,7 @@ impl Web3Manager {
         Ok(self
             .sign_and_send_tx(
                 account,
-                contract_instance,
+                &router_instance,
                 contract_function,
                 &parameters2,
                 &amount_out_min[0].to_string(),
@@ -276,6 +429,7 @@ impl Web3Manager {
         }
     }
 
+
     // Get a estimation on medium gas price in network
     // Obtiene un precio del gas  estimado en la red
     pub async fn gas_price(&self) -> Result<U256, web3::Error> {
@@ -313,6 +467,10 @@ impl Web3Manager {
             .send_raw_transaction(raw_transaction)
             .await
             .unwrap()
+    }
+
+    fn update_nonce(&mut self) {
+        self.current_nonce = self.current_nonce + 1;
     }
 
     // The transactions must be signed with the private key of the wallet that executes it
@@ -419,7 +577,7 @@ impl Web3Manager {
     }
 
     pub async fn sign_and_send_tx<P: Clone>(
-        &self,
+        &mut self,
         account: H160,
         contract_instance: &Contract<Http>,
         func: &str,
@@ -432,13 +590,13 @@ impl Web3Manager {
         // estimate gas for call this function with this parameters
         // increase 200ms execution time, we use high gas available
         // gas not used goes back to contract
-        /*
+
         let estimated_tx_gas: U256 = self
             .estimate_tx_gas(&contract_instance.clone(), &func, params.clone(), value)
             .await;
-        */
 
-        let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
+
+        //let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
 
         // 2. encode_tx_data
         let tx_data: Bytes = self.encode_tx_data(contract_instance, func, params.clone());
@@ -471,6 +629,8 @@ impl Web3Manager {
             tx_id
         );
 
+        self.update_nonce();
+
         return tx_id;
 
         // NOTE(elsuizo:2022-03-05): esta es la unica linea de codigo que hace que se necesite un
@@ -481,7 +641,7 @@ impl Web3Manager {
     }
 
     pub async fn sent_erc20_token(
-        &self,
+        &mut self,
         account: H160,
         contract_instance: &Contract<Http>,
         to: &str,
@@ -572,13 +732,6 @@ impl Web3Manager {
     }
 }
 
-pub fn wei_to_eth(wei_val: U256) -> f64 {
-    // ethereum does not have fractional numbers so every amount is expressed in wei, to show the
-    // amount in ether this function is used ethereum no tiene numeros fraccionarios por lo que
-    // toda cantidad se expresa en wei, para mostrar la cantidad en ether se utiliza esta función
-    wei_val.as_u128() as f64 / 1_000_000_000_000_000_000.0f64
-}
-
 pub fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> {
     let mut results = vec![];
     let mut current = vec![];
@@ -598,36 +751,4 @@ pub fn split_vector_in_chunks2(data: &[Uint], chunk_size: usize) -> Vec<Vec<Uint
     data.chunks(chunk_size)
         .map(|element| element.to_vec())
         .collect()
-}
-
-//-------------------------------------------------------------------------
-//                        tests
-//-------------------------------------------------------------------------
-#[cfg(test)]
-mod tests {
-    use super::{split_vector_in_chunks, split_vector_in_chunks2};
-    use crate::U256;
-
-    #[test]
-    fn split_vector_tests() {
-        let vector = vec![
-            U256::from(3usize),
-            U256::from(2usize),
-            U256::from(4usize),
-            U256::from(3usize),
-            U256::from(4usize),
-            U256::from(4usize),
-            U256::from(0usize),
-        ];
-        let vector2 = vector.clone();
-        let result = split_vector_in_chunks(vector, 2);
-        let expected = split_vector_in_chunks2(&vector2, 2);
-        assert_eq!(
-            &result[..],
-            &expected[..],
-            "\nExpected\n{:?}\nfound\n{:?}",
-            &result[..],
-            &expected[..]
-        );
-    }
 }

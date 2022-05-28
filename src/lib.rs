@@ -8,26 +8,33 @@ use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
-use futures::{StreamExt, future};
+use futures::{future, StreamExt};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::convert::{From, TryFrom};
 use std::env;
 // use std::env;
+use chrono::format::format;
+use secp256k1::rand::rngs::StdRng;
+use secp256k1::rand::Rng;
+use secp256k1::{
+    rand::{rngs, SeedableRng},
+    PublicKey, SecretKey,
+};
 use std::str::FromStr;
 use std::time::{SystemTime, SystemTimeError};
+use web3::api::SubscriptionStream;
 use web3::contract::tokens::{Detokenize, Tokenize};
 use web3::contract::{Contract, Options};
 use web3::ethabi::ethereum_types::H256;
 use web3::ethabi::{Int, Uint};
-use web3::transports::{Http, WebSocket};
-use web3::types::{Address, Bytes, SignedTransaction, TransactionParameters, H160, U256, U64, FilterBuilder, Log};
-use web3::Web3;
-use web3::api::SubscriptionStream;
-use secp256k1::{rand::{rngs, SeedableRng}, PublicKey, SecretKey};
-use secp256k1::rand::Rng;
-use secp256k1::rand::rngs::StdRng;
 use web3::signing::keccak256;
+use web3::transports::{Http, WebSocket};
+use web3::types::{
+    Address, Bytes, FilterBuilder, Log, SignedTransaction, Transaction, TransactionId,
+    TransactionParameters, H160, U256, U64,
+};
+use web3::Web3;
 
 // use hex_literal::hex;
 
@@ -101,8 +108,8 @@ mod tests {
 
 // use chainlink_interface::EthereumFeeds;
 trait InstanceOf
-    where
-        Self: Any,
+where
+    Self: Any,
 {
     fn instance_of<U: ?Sized + Any>(&self) -> bool {
         TypeId::of::<Self>() == TypeId::of::<U>()
@@ -150,7 +157,10 @@ impl Web3Manager {
         println!("first random u64 is: {}", n2);
         let mut rng: StdRng = rngs::StdRng::seed_from_u64(n2);
         let random_number: u64 = rng.gen::<u64>();
-        println!("With seed {}, the first random u64 is: {}", n2, random_number);
+        println!(
+            "With seed {}, the first random u64 is: {}",
+            n2, random_number
+        );
 
         secp.generate_keypair(&mut rng)
     }
@@ -170,7 +180,6 @@ impl Web3Manager {
         keypairs
     }
 
-
     pub fn wei_to_eth(wei_val: U256) -> f64 {
         let res = wei_val.as_u128() as f64;
         res / 1_000_000_000_000_000_000.0
@@ -183,9 +192,8 @@ impl Web3Manager {
     }
 
     fn wei_to_eth2(val: &str) -> U256 {
-
         let v: f64 = val.parse().unwrap();
-        let a:U256 = U256::from_dec_str(v.clone().to_string().as_str()).unwrap();
+        let a: U256 = U256::from_dec_str(v.clone().to_string().as_str()).unwrap();
         //et k = wei_to_eth(a);
         return a;
     }
@@ -339,7 +347,7 @@ impl Web3Manager {
                 vec![pair_a.to_string(), pair_b.to_string()],
             ),
         )
-            .await
+        .await
     }
 
     // TODO(elsuizo:2022-03-03): verify this method
@@ -416,7 +424,6 @@ impl Web3Manager {
         //let chain_id: Option<u64> = Option::Some(u64::try_from(web3http.eth().chain_id().await.unwrap()).unwrap());
         let chain_id: Option<u64> = Option::Some(u64::try_from(u64chain_id).unwrap());
 
-
         Web3Manager {
             accounts,
             balances,
@@ -428,7 +435,6 @@ impl Web3Manager {
             chain_id,
         }
     }
-
 
     // Get a estimation on medium gas price in network
     // Obtiene un precio del gas  estimado en la red
@@ -448,9 +454,9 @@ impl Web3Manager {
         func: &str,
         params: P,
     ) -> Result<T, web3::contract::Error>
-        where
-            P: Tokenize,
-            T: Detokenize,
+    where
+        P: Tokenize,
+        T: Detokenize,
     {
         // query contract
         contract_instance
@@ -513,8 +519,8 @@ impl Web3Manager {
 
     // TODO(elsuizo:2022-03-03): add a `Result` here
     pub fn encode_tx_data<P>(&self, contract: &Contract<Http>, func: &str, params: P) -> Bytes
-        where
-            P: Tokenize,
+    where
+        P: Tokenize,
     {
         contract
             .abi()
@@ -532,8 +538,8 @@ impl Web3Manager {
         params: P,
         value: &str,
     ) -> U256
-        where
-            P: Tokenize,
+    where
+        P: Tokenize,
     {
         contract
             .estimate_gas(
@@ -584,8 +590,8 @@ impl Web3Manager {
         params: &P,
         value: &str,
     ) -> H256
-        where
-            P: Tokenize,
+    where
+        P: Tokenize,
     {
         // estimate gas for call this function with this parameters
         // increase 200ms execution time, we use high gas available
@@ -594,7 +600,6 @@ impl Web3Manager {
         let estimated_tx_gas: U256 = self
             .estimate_tx_gas(&contract_instance.clone(), &func, params.clone(), value)
             .await;
-
 
         //let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
 
@@ -616,12 +621,12 @@ impl Web3Manager {
             self.sign_transaction(account, tx_parameters).await;
 
         // send tx
-        let tx_id: H256 = self.web3http
+        let tx_id: H256 = self
+            .web3http
             .eth()
             .send_raw_transaction(signed_transaction.raw_transaction)
             .await
             .unwrap();
-
 
         println!(
             "Transaction successful with hash: {}{:?}",
@@ -660,7 +665,7 @@ impl Web3Manager {
             &contract_function_parameters,
             "0",
         )
-            .await
+        .await
     }
 
     //-------------------------------------------------------------------------
@@ -678,7 +683,10 @@ impl Web3Manager {
             .await
             .expect("error creating the proxy instance");
 
-        let res: (Uint, Int, Uint, Uint, Uint) = self.query_contract(&proxy_instance, "latestRoundData", ()).await.unwrap();
+        let res: (Uint, Int, Uint, Uint, Uint) = self
+            .query_contract(&proxy_instance, "latestRoundData", ())
+            .await
+            .unwrap();
         res.1
     }
 
@@ -698,10 +706,7 @@ impl Web3Manager {
     }
      */
 
-    pub async fn listen_contract_events(
-        &self,
-        contract_address: &str,
-    ) {
+    pub async fn listen_contract_events(&self, contract_address: &str) {
         /*
         let filter = FilterBuilder::default()
         .address(vec![contract.address()])
@@ -719,16 +724,61 @@ impl Web3Manager {
 
         let filter = FilterBuilder::default()
             .address(vec![Address::from_str(contract_address).unwrap()])
-            .topics(None, None, None, None,
-            )
+            .topics(None, None, None, None)
             .build();
 
-        let sub: SubscriptionStream<WebSocket, Log> = self.web3web_socket.eth_subscribe().subscribe_logs(filter).await.unwrap();
-        sub.for_each(|log| {
-            println!("got log: {:?}", log);
-            future::ready(())
+        let sub: SubscriptionStream<WebSocket, Log> = self
+            .web3web_socket
+            .eth_subscribe()
+            .subscribe_logs(filter)
+            .await
+            .unwrap();
+        sub.for_each(|log| async {
+            let l: Log = log.unwrap();
+            println!("Address: {:?}", l.transaction_hash.unwrap());
+            println!("Data: {:?}", l.data);
+            println!("Data0: {:?}", l.data.0);
+            println!("{}", std::str::from_utf8(&l.data.0).unwrap());
+            println!("topics: {:?}", l.topics);
+            println!("log_type: {:?}", l.log_type);
+
+            let tx = self
+                .web3http
+                .eth()
+                .transaction(TransactionId::Hash(l.transaction_hash.unwrap()))
+                .await
+                .unwrap()
+                .unwrap();
+
+            let from_addr = tx.from.unwrap_or(H160::zero());
+            let to_addr = tx.to.unwrap_or(H160::zero());
+            let value = tx.value;
+            let input = tx.input;
+
+            println!("from_addr: {:?}", from_addr);
+            println!("to_addr: {:?}", to_addr);
+            println!("value: {:?}", value);
+            println!("input: {:?}", input);
         })
-            .await;
+        .await;
+    }
+
+    pub async fn build_contract_events(
+        &self,
+        contract_address: &str,
+    ) -> SubscriptionStream<WebSocket, Log> {
+        let filter = FilterBuilder::default()
+            .address(vec![Address::from_str(contract_address).unwrap()])
+            .topics(None, None, None, None)
+            .build();
+
+        let sub: SubscriptionStream<WebSocket, Log> = self
+            .web3web_socket
+            .eth_subscribe()
+            .subscribe_logs(filter)
+            .await
+            .unwrap();
+        return sub;
     }
 }
 

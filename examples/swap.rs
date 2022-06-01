@@ -27,7 +27,7 @@ async fn main() -> web3::Result<()> {
     // init contract
     // usuario1
     let contract_abi = include_bytes!("../abi/TokenAbi.json");
-    let contract_address = "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684";
+    let contract_address = "0x4b55b91D7854CcE48B2794e60f53266B6B896125";
     let contract_instance: Contract<Http> = web3m
         .instance_contract(contract_address, contract_abi)
         .await

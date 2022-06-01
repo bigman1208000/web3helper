@@ -9,6 +9,7 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 use futures::{future, StreamExt};
+use serde::{Serialize, Deserialize};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::convert::{From, TryFrom};
@@ -118,6 +119,12 @@ where
 
 // implement this trait for every type that implements `Any` (which is most types)
 impl<T: ?Sized + Any> InstanceOf for T {}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct KeyPair {
+    pub secret_key: String,
+    pub public_key: String,
+}
 
 #[derive(Clone, Debug)]
 pub struct Web3Manager {

@@ -9,7 +9,7 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 use futures::{future, StreamExt};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::convert::{From, TryFrom};
@@ -589,6 +589,69 @@ impl Web3Manager {
         return result;
     }
 
+    pub async fn estimate_sign_and_send_tx_result<P: Clone>(
+        &mut self,
+        account: H160,
+        contract_instance: &Contract<Http>,
+        func: &str,
+        params: &P,
+        value: &str,
+    ) -> H256
+    where
+        P: Tokenize,
+    {
+        // estimate gas for call this function with this parameters
+        // increase 200ms execution time, we use high gas available
+        // gas not used goes back to contract
+
+        let estimated_tx_gas: U256 = self
+            .estimate_tx_gas(&contract_instance.clone(), &func, params.clone(), value)
+            .await;
+
+        //let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
+
+        // 2. encode_tx_data
+        let tx_data: Bytes = self.encode_tx_data(contract_instance, func, params.clone());
+
+        // 3. build tx parameters
+        let tx_parameters: TransactionParameters = self.encode_tx_parameters(
+            self.current_nonce,
+            contract_instance.address(),
+            U256::from_dec_str(value).unwrap(),
+            estimated_tx_gas,
+            self.current_gas_price,
+            tx_data,
+        );
+
+        // 4. sign tx
+        let signed_transaction: SignedTransaction =
+            self.sign_transaction(account, tx_parameters).await;
+
+        // send tx
+        let tx_id: H256 = self
+            .web3http
+            .eth()
+            .send_raw_transaction(signed_transaction.raw_transaction)
+            .await
+            .unwrap();
+
+        println!(
+            "Transaction successful with hash: {}{:?}",
+            &env::var("EXPLORER").unwrap(),
+            tx_id
+        );
+
+        self.update_nonce();
+
+        return tx_id;
+
+        // NOTE(elsuizo:2022-03-05): esta es la unica linea de codigo que hace que se necesite un
+        // `&mut self` una de las reglas a seguir en Rust es no utilizar &mut cuando no es
+        // necesario ya que con esa informacion el compilador puede hacer mas optimizaciones y
+        // simplificaciones
+        // self.current_nonce = self.current_nonce + 1; // todo, check pending nonce dont works
+    }
+
     pub async fn sign_and_send_tx<P: Clone>(
         &mut self,
         account: H160,
@@ -786,6 +849,58 @@ impl Web3Manager {
             .await
             .unwrap();
         return sub;
+    }
+
+    pub async fn init_pair(&self) -> Contract<Http> {
+        let lp_pair_abi = include_bytes!("../abi/PancakeLPTokenAbi.json");
+        let lp_pair_instance_address = "0x5E2E7b76e56abc3A922aC2Ca75B3e84bC29D766d";
+        let lp_pair_instance: Contract<Http> = self
+            .instance_contract(lp_pair_instance_address, lp_pair_abi)
+            .await
+            .expect("error creating the contract instance");
+        lp_pair_instance
+    }
+
+    pub async fn init_router_factory(&self) -> Contract<Http> {
+        let factory_abi = include_bytes!("../abi/RouterAbi.json");
+        let factory_address = "0xB7926C0430Afb07AA7DEfDE6DA862aE0Bde767bc";
+        let factory_instance: Contract<Http> = self
+            .instance_contract(factory_address, factory_abi)
+            .await
+            .expect("error creating the contract instance");
+        factory_instance
+    }
+
+    pub async fn init_router(&self) -> Contract<Http> {
+        //let abi: Abi = load_abi_from_json("factoryabi.json");
+        let router_abi = include_bytes!("../abi/PancakeFactoryAbi.json");
+        let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
+        let router_instance: Contract<Http> = self
+            .instance_contract(router_address, router_abi)
+            .await
+            .expect("error creating the contract instance");
+        router_instance
+    }
+
+    pub async fn token_has_liquidity(&self, lp_pair_factory_instance: Contract<Http>) -> bool {
+        let lp_pair_reserves: (Uint, Uint, Uint) = self
+            .query_contract(&lp_pair_factory_instance, "getReserves", ())
+            .await
+            .unwrap();
+        println!("lp_pair_reserves: {:?}", lp_pair_reserves);
+        lp_pair_reserves.0 > U256::from(0) && lp_pair_reserves.1 > U256::from(0)
+    }
+
+    pub async fn get_token_reserves(
+        web3m: Web3Manager,
+        lp_pair_factory_instance: Contract<Http>,
+    ) -> (U256, U256, U256) {
+        let lp_pair_reserves: (Uint, Uint, Uint) = web3m
+            .query_contract(&lp_pair_factory_instance, "getReserves", ())
+            .await
+            .unwrap();
+        println!("lp_pair_reserves: {:?}", lp_pair_reserves);
+        lp_pair_reserves
     }
 }
 

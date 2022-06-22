@@ -254,7 +254,7 @@ impl Web3Manager {
         println!("amount_out: {:?}", amount_out);
         println!("min_amount_less_slippage: {:?}", min_amount_less_slippage);
 
-        let mut tx_hash = H256::from_str("0x0").unwrap();
+        let mut tx_hash = H256::from_str("0").unwrap();
 
         let send_tx_result = self
             .sign_and_send_tx(
@@ -266,7 +266,7 @@ impl Web3Manager {
             )
             .await;
 
-        if send_tx_result > H256::from_str("0x0").unwrap() {
+        if send_tx_result > H256::from_str("0").unwrap() {
             tx_hash = send_tx_result;
         }
         Ok(tx_hash)
@@ -344,9 +344,9 @@ impl Web3Manager {
             )
             .await;
 
-        let mut tx_hash = H256::from_str("0x0").unwrap();
+        let mut tx_hash = H256::from_str("0").unwrap();
 
-        if send_tx_result > H256::from_str("0x0").unwrap() {
+        if send_tx_result > H256::from_str("0").unwrap() {
             tx_hash = send_tx_result;
         }
 
@@ -605,9 +605,9 @@ impl Web3Manager {
             )
             .await;
 
-        let mut tx_hash = H256::from_str("0x0").unwrap();
+        let mut tx_hash = H256::from_str("0").unwrap();
 
-        if send_tx_result > H256::from_str("0x0").unwrap() {
+        if send_tx_result > H256::from_str("0").unwrap() {
             tx_hash = send_tx_result;
         }
 
@@ -706,9 +706,9 @@ impl Web3Manager {
             )
             .await;
 
-        let mut tx_hash = H256::from_str("0x0").unwrap();
+        let mut tx_hash = H256::from_str("0").unwrap();
 
-        if send_tx_result > H256::from_str("0x0").unwrap() {
+        if send_tx_result > H256::from_str("0").unwrap() {
             tx_hash = send_tx_result;
         }
 

@@ -264,7 +264,7 @@ impl Web3Manager {
             )
             .await;
 
-        Ok(send_tx_result)
+        Ok(send_tx_result.unwrap())
     }
 
     pub async fn swap_eth_for_exact_tokens(
@@ -274,7 +274,7 @@ impl Web3Manager {
         token_amount: &str,
         pairs: &[&str],
         slippage: usize,
-    ) -> Result<H256, Box<dyn std::error::Error>> {
+    ) -> Result<H256, web3::Error> {
         let mut router_abi_path = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
         let mut contract_function: &str = "swapExactETHForTokens";
 
@@ -316,12 +316,13 @@ impl Web3Manager {
         let parameter_out = (amount_out, addresses.clone());
         let amount_out_min: Vec<Uint> = self
             .query_contract(&router_instance, "getAmountsOut", parameter_out)
-            .await?;
+            .await
+            .unwrap();
 
         let min_amount = U256::from(amount_out_min[1].as_u128());
         let min_amount_less_slippage = min_amount - ((min_amount * slippage) / 100usize);
 
-        let deadline = self.generate_deadline()?;
+        let deadline = self.generate_deadline().unwrap();
         let parameters2 = (
             min_amount_less_slippage,
             addresses,
@@ -339,7 +340,7 @@ impl Web3Manager {
             )
             .await;
 
-        Ok(send_tx_result)
+        send_tx_result
     }
 
     pub async fn get_out_estimated_tokens_for_tokens(
@@ -579,7 +580,7 @@ impl Web3Manager {
         contract_instance: Contract<Http>,
         spender: &str,
         value: &str,
-    ) -> Result<H256, Box<dyn std::error::Error>> {
+    ) -> Result<H256, web3::Error> {
         let spender_address: Address = Address::from_str(spender).unwrap();
         let contract_function = "approve";
         let contract_function_parameters = (spender_address, U256::from_dec_str(value).unwrap());
@@ -594,7 +595,7 @@ impl Web3Manager {
             )
             .await;
 
-        Ok(send_tx_result)
+        Ok(send_tx_result.unwrap())
     }
 
     pub async fn sign_and_send_tx<P: Clone>(
@@ -604,7 +605,7 @@ impl Web3Manager {
         func: &str,
         params: &P,
         value: &str,
-    ) -> H256
+    ) -> Result<H256, web3::Error>
     where
         P: Tokenize,
     {
@@ -643,7 +644,7 @@ impl Web3Manager {
             .await;
 
         self.update_nonce();
-        return tx_result.unwrap();
+        return tx_result;
 
         // NOTE(elsuizo:2022-03-05): esta es la unica linea de codigo que hace que se necesite un
         // `&mut self` una de las reglas a seguir en Rust es no utilizar &mut cuando no es
@@ -675,7 +676,7 @@ impl Web3Manager {
             )
             .await;
 
-        send_tx_result
+        send_tx_result.unwrap()
     }
 
     //-------------------------------------------------------------------------

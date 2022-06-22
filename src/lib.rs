@@ -851,9 +851,9 @@ impl Web3Manager {
         return sub;
     }
 
-    pub async fn init_pair(&self) -> Contract<Http> {
+    pub async fn init_pair(&self, lp_address: &str) -> Contract<Http> {
         let lp_pair_abi = include_bytes!("../abi/PancakeLPTokenAbi.json");
-        let lp_pair_instance_address = "0x5E2E7b76e56abc3A922aC2Ca75B3e84bC29D766d";
+        let lp_pair_instance_address = lp_address;
         let lp_pair_instance: Contract<Http> = self
             .instance_contract(lp_pair_instance_address, lp_pair_abi)
             .await

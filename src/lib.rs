@@ -254,8 +254,6 @@ impl Web3Manager {
         println!("amount_out: {:?}", amount_out);
         println!("min_amount_less_slippage: {:?}", min_amount_less_slippage);
 
-        let mut tx_hash = H256::from_str("0").unwrap();
-
         let send_tx_result = self
             .sign_and_send_tx(
                 account,
@@ -266,10 +264,7 @@ impl Web3Manager {
             )
             .await;
 
-        if send_tx_result > H256::from_str("0").unwrap() {
-            tx_hash = send_tx_result;
-        }
-        Ok(tx_hash)
+        Ok(send_tx_result)
     }
 
     pub async fn swap_eth_for_exact_tokens(
@@ -344,13 +339,7 @@ impl Web3Manager {
             )
             .await;
 
-        let mut tx_hash = H256::from_str("0").unwrap();
-
-        if send_tx_result > H256::from_str("0").unwrap() {
-            tx_hash = send_tx_result;
-        }
-
-        Ok(tx_hash)
+        Ok(send_tx_result)
     }
 
     pub async fn get_out_estimated_tokens_for_tokens(
@@ -590,7 +579,7 @@ impl Web3Manager {
         contract_instance: Contract<Http>,
         spender: &str,
         value: &str,
-    ) -> H256 {
+    ) -> Result<H256, Box<dyn std::error::Error>> {
         let spender_address: Address = Address::from_str(spender).unwrap();
         let contract_function = "approve";
         let contract_function_parameters = (spender_address, U256::from_dec_str(value).unwrap());
@@ -605,13 +594,7 @@ impl Web3Manager {
             )
             .await;
 
-        let mut tx_hash = H256::from_str("0").unwrap();
-
-        if send_tx_result > H256::from_str("0").unwrap() {
-            tx_hash = send_tx_result;
-        }
-
-        return tx_hash;
+        Ok(send_tx_result)
     }
 
     pub async fn sign_and_send_tx<P: Clone>(
@@ -659,22 +642,8 @@ impl Web3Manager {
             .send_raw_transaction(signed_transaction.raw_transaction)
             .await;
 
-        let mut tx_result_hash: H256 = H256::from_str("0").unwrap();
-
-        if tx_result.is_ok() {
-            /*
-            println!(
-                "Transaction successful with hash: {}{:?}",
-                &env::var("EXPLORER").unwrap(),
-                tx_result.unwrap()
-            );
-            */
-            tx_result_hash = tx_result.unwrap();
-
-            self.update_nonce();
-        }
-
-        return tx_result_hash;
+        self.update_nonce();
+        return tx_result.unwrap();
 
         // NOTE(elsuizo:2022-03-05): esta es la unica linea de codigo que hace que se necesite un
         // `&mut self` una de las reglas a seguir en Rust es no utilizar &mut cuando no es
@@ -706,13 +675,7 @@ impl Web3Manager {
             )
             .await;
 
-        let mut tx_hash = H256::from_str("0").unwrap();
-
-        if send_tx_result > H256::from_str("0").unwrap() {
-            tx_hash = send_tx_result;
-        }
-
-        tx_hash
+        send_tx_result
     }
 
     //-------------------------------------------------------------------------

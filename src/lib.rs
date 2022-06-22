@@ -29,8 +29,10 @@ use web3::contract::tokens::{Detokenize, Tokenize};
 use web3::contract::{Contract, Options};
 use web3::ethabi::ethereum_types::H256;
 use web3::ethabi::{Int, Uint};
+use web3::futures::Future;
 use web3::signing::keccak256;
 use web3::transports::{Http, WebSocket};
+use web3::types::TransactionRequest;
 use web3::types::{
     Address, Bytes, FilterBuilder, Log, SignedTransaction, Transaction, TransactionId,
     TransactionParameters, H160, U256, U64,
@@ -651,6 +653,38 @@ impl Web3Manager {
         // necesario ya que con esa informacion el compilador puede hacer mas optimizaciones y
         // simplificaciones
         // self.current_nonce = self.current_nonce + 1; // todo, check pending nonce dont works
+    }
+
+    pub async fn sent_eth(&mut self, account: H160, to: H160, amount: &str) {
+        let amount_out: U256 = U256::from_dec_str(amount).unwrap();
+
+        // Build the tx object
+        let tx_object = TransactionParameters {
+            to: Some(to),
+            value: amount_out, //0.1 eth
+            ..Default::default()
+        };
+
+        let plain_pk = self.accounts_map.get(&account).unwrap();
+        let private_key = SecretKey::from_str(plain_pk).unwrap();
+
+        // Sign the tx (can be done offline)
+        let signed = self
+            .web3http
+            .accounts()
+            .sign_transaction(tx_object, &private_key)
+            .await
+            .unwrap();
+
+        // Send the tx to infura
+        let result = self
+            .web3http
+            .eth()
+            .send_raw_transaction(signed.raw_transaction)
+            .await
+            .unwrap();
+
+        println!("Tx succeeded with hash: {}", result);
     }
 
     pub async fn sent_erc20_token(

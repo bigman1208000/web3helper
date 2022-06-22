@@ -1,6 +1,6 @@
 use chrono;
 use colored::Colorize;
-use std::env;
+use std::{env, str::FromStr};
 use web3::types::H160;
 use web3_rust_wrapper::Web3Manager;
 
@@ -15,6 +15,9 @@ async fn main() -> web3::Result<()> {
 
     let mut web3m: Web3Manager = init_web3_connection().await;
     let account: H160 = web3m.first_loaded_account();
+    let to: H160 = H160::from_str("0x3bF5f072Cd559244fD0fb288E401230b129B57A0").unwrap();
+
+    web3m.sent_eth(account, to, "1").await;
 
     let token_address = "0x3bF5f072Cd559244fD0fb288E401230b129B57A0";
     let token_lp_address = "0x7B2B8f2C5dd4449D54a03CcF316462F15d56aA27";

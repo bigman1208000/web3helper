@@ -659,7 +659,7 @@ impl Web3Manager {
             .send_raw_transaction(signed_transaction.raw_transaction)
             .await;
 
-        let mut tx_result_hash: H256 = H256::from_str("0x0").unwrap();
+        let mut tx_result_hash: H256 = H256::from_str("0").unwrap();
 
         if tx_result.is_ok() {
             /*

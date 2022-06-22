@@ -653,22 +653,28 @@ impl Web3Manager {
             self.sign_transaction(account, tx_parameters).await;
 
         // send tx
-        let tx_id: H256 = self
+        let tx_result = self
             .web3http
             .eth()
             .send_raw_transaction(signed_transaction.raw_transaction)
-            .await
-            .unwrap();
+            .await;
 
-        println!(
-            "Transaction successful with hash: {}{:?}",
-            &env::var("EXPLORER").unwrap(),
-            tx_id
-        );
+        let mut tx_result_hash: H256 = H256::from_str("0x0").unwrap();
 
-        self.update_nonce();
+        if tx_result.is_ok() {
+            /*
+            println!(
+                "Transaction successful with hash: {}{:?}",
+                &env::var("EXPLORER").unwrap(),
+                tx_result.unwrap()
+            );
+            */
+            tx_result_hash = tx_result.unwrap();
 
-        return tx_id;
+            self.update_nonce();
+        }
+
+        return tx_result_hash;
 
         // NOTE(elsuizo:2022-03-05): esta es la unica linea de codigo que hace que se necesite un
         // `&mut self` una de las reglas a seguir en Rust es no utilizar &mut cuando no es

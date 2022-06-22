@@ -55,10 +55,11 @@ async fn main() -> web3::Result<()> {
         if has_liquidity {
             println!("{}", "has_liquidity".green());
 
-            while !buy_tx_ok {
+            while !buy_tx_ok && slippage < 10usize {
                 //println!("trying buy");
-                //println!("slippage: {:?}", slippage);
+                println!("slippage: {:?}", slippage);
                 println!("{}", "trying buy...".yellow());
+
                 let tx_result = web3m
                     .swap_eth_for_exact_tokens(
                         account,
@@ -75,6 +76,10 @@ async fn main() -> web3::Result<()> {
                 } else {
                     println!("TradingNotEnabled");
                     slippage += 1;
+                }
+
+                if slippage == 10usize {
+                    println!("{}", "Max Slippage exceded".red());
                 }
             }
         }

@@ -1,6 +1,6 @@
 [package]
 name = "web3_rust_wrapper"
-version = "0.3.6"
+version = "0.3.7"
 edition = "2018"
 license = "MIT"
 description = "web3_rust_wrapper"

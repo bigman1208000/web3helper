@@ -2194,7 +2194,7 @@ dependencies = [
 
 [[package]]
 name = "web3_rust_wrapper"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "chrono",
  "clearscreen",

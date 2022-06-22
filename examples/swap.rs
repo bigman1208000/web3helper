@@ -48,6 +48,7 @@ async fn main() -> web3::Result<()> {
         "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd", // WAVAX
         "0x7ef95a0FEE0Dd31b22626fA2e10Ee6A223F8a684", // TOKEN
     ];
+    
 
     let now = Instant::now();
     let slippage = 40usize;

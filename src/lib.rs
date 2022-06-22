@@ -254,7 +254,9 @@ impl Web3Manager {
         println!("amount_out: {:?}", amount_out);
         println!("min_amount_less_slippage: {:?}", min_amount_less_slippage);
 
-        Ok(self
+        let mut tx_hash = H256::from_str("0x0").unwrap();
+
+        let send_tx_result = self
             .sign_and_send_tx(
                 account,
                 contract_instance,
@@ -262,10 +264,14 @@ impl Web3Manager {
                 &parameters2,
                 &U256::from("0").to_string(),
             )
-            .await)
+            .await;
+
+        if send_tx_result > H256::from_str("0x0").unwrap() {
+            tx_hash = send_tx_result;
+        }
+        Ok(tx_hash)
     }
 
-    // TODO(elsuizo:2022-03-03): documentation here
     pub async fn swap_eth_for_exact_tokens(
         &mut self,
         account: H160,
@@ -328,7 +334,7 @@ impl Web3Manager {
             deadline + 600usize,
         );
 
-        Ok(self
+        let send_tx_result = self
             .sign_and_send_tx(
                 account,
                 &router_instance,
@@ -336,7 +342,15 @@ impl Web3Manager {
                 &parameters2,
                 &amount_out_min[0].to_string(),
             )
-            .await)
+            .await;
+
+        let mut tx_hash = H256::from_str("0x0").unwrap();
+
+        if send_tx_result > H256::from_str("0x0").unwrap() {
+            tx_hash = send_tx_result;
+        }
+
+        Ok(tx_hash)
     }
 
     pub async fn get_out_estimated_tokens_for_tokens(
@@ -548,7 +562,8 @@ impl Web3Manager {
     where
         P: Tokenize,
     {
-        contract
+        let mut gas_estimation = U256::from_dec_str("0").unwrap();
+        let gas_estimation_result = contract
             .estimate_gas(
                 func,
                 params,
@@ -558,8 +573,11 @@ impl Web3Manager {
                     ..Default::default()
                 },
             )
-            .await
-            .unwrap()
+            .await;
+        if gas_estimation_result.is_ok() {
+            gas_estimation = gas_estimation_result.unwrap();
+        }
+        gas_estimation
     }
 
     pub fn first_loaded_account(&self) -> H160 {
@@ -577,7 +595,7 @@ impl Web3Manager {
         let contract_function = "approve";
         let contract_function_parameters = (spender_address, U256::from_dec_str(value).unwrap());
 
-        let result: H256 = self
+        let send_tx_result = self
             .sign_and_send_tx(
                 account,
                 &contract_instance,
@@ -586,70 +604,14 @@ impl Web3Manager {
                 "0",
             )
             .await;
-        return result;
-    }
 
-    pub async fn estimate_sign_and_send_tx_result<P: Clone>(
-        &mut self,
-        account: H160,
-        contract_instance: &Contract<Http>,
-        func: &str,
-        params: &P,
-        value: &str,
-    ) -> H256
-    where
-        P: Tokenize,
-    {
-        // estimate gas for call this function with this parameters
-        // increase 200ms execution time, we use high gas available
-        // gas not used goes back to contract
+        let mut tx_hash = H256::from_str("0x0").unwrap();
 
-        let estimated_tx_gas: U256 = self
-            .estimate_tx_gas(&contract_instance.clone(), &func, params.clone(), value)
-            .await;
+        if send_tx_result > H256::from_str("0x0").unwrap() {
+            tx_hash = send_tx_result;
+        }
 
-        //let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
-
-        // 2. encode_tx_data
-        let tx_data: Bytes = self.encode_tx_data(contract_instance, func, params.clone());
-
-        // 3. build tx parameters
-        let tx_parameters: TransactionParameters = self.encode_tx_parameters(
-            self.current_nonce,
-            contract_instance.address(),
-            U256::from_dec_str(value).unwrap(),
-            estimated_tx_gas,
-            self.current_gas_price,
-            tx_data,
-        );
-
-        // 4. sign tx
-        let signed_transaction: SignedTransaction =
-            self.sign_transaction(account, tx_parameters).await;
-
-        // send tx
-        let tx_id: H256 = self
-            .web3http
-            .eth()
-            .send_raw_transaction(signed_transaction.raw_transaction)
-            .await
-            .unwrap();
-
-        println!(
-            "Transaction successful with hash: {}{:?}",
-            &env::var("EXPLORER").unwrap(),
-            tx_id
-        );
-
-        self.update_nonce();
-
-        return tx_id;
-
-        // NOTE(elsuizo:2022-03-05): esta es la unica linea de codigo que hace que se necesite un
-        // `&mut self` una de las reglas a seguir en Rust es no utilizar &mut cuando no es
-        // necesario ya que con esa informacion el compilador puede hacer mas optimizaciones y
-        // simplificaciones
-        // self.current_nonce = self.current_nonce + 1; // todo, check pending nonce dont works
+        return tx_hash;
     }
 
     pub async fn sign_and_send_tx<P: Clone>(
@@ -728,14 +690,23 @@ impl Web3Manager {
         let contract_function_parameters =
             (recipient_address, U256::from_dec_str(token_amount).unwrap());
 
-        self.sign_and_send_tx(
-            account,
-            contract_instance,
-            contract_function,
-            &contract_function_parameters,
-            "0",
-        )
-        .await
+        let send_tx_result = self
+            .sign_and_send_tx(
+                account,
+                contract_instance,
+                contract_function,
+                &contract_function_parameters,
+                "0",
+            )
+            .await;
+
+        let mut tx_hash = H256::from_str("0x0").unwrap();
+
+        if send_tx_result > H256::from_str("0x0").unwrap() {
+            tx_hash = send_tx_result;
+        }
+
+        tx_hash
     }
 
     //-------------------------------------------------------------------------

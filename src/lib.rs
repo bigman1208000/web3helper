@@ -8,20 +8,17 @@ use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
-use futures::{future, StreamExt};
-use serde::{Deserialize, Serialize};
-use std::any::{Any, TypeId};
-use std::collections::HashMap;
-use std::convert::{From, TryFrom};
-use std::env;
-// use std::env;
-use chrono::format::format;
+use futures::StreamExt;
 use secp256k1::rand::rngs::StdRng;
 use secp256k1::rand::Rng;
 use secp256k1::{
     rand::{rngs, SeedableRng},
     PublicKey, SecretKey,
 };
+use serde::{Deserialize, Serialize};
+use std::any::{Any, TypeId};
+use std::collections::HashMap;
+use std::convert::{From, TryFrom};
 use std::str::FromStr;
 use std::time::{SystemTime, SystemTimeError};
 use web3::api::SubscriptionStream;
@@ -29,13 +26,11 @@ use web3::contract::tokens::{Detokenize, Tokenize};
 use web3::contract::{Contract, Options};
 use web3::ethabi::ethereum_types::H256;
 use web3::ethabi::{Int, Uint};
-use web3::futures::Future;
 use web3::signing::keccak256;
 use web3::transports::{Http, WebSocket};
-use web3::types::TransactionRequest;
 use web3::types::{
-    Address, Bytes, FilterBuilder, Log, SignedTransaction, Transaction, TransactionId,
-    TransactionParameters, H160, U256, U64,
+    Address, Bytes, FilterBuilder, Log, SignedTransaction, TransactionId, TransactionParameters,
+    H160, U256, U64,
 };
 use web3::Web3;
 
@@ -141,7 +136,6 @@ pub struct Web3Manager {
     // web3 websocket instance (for listen contracts events)
     accounts_map: HashMap<H160, String>,
     // hashmap (like mapping on solidity) for store public and private keys
-    current_gas_price: U256,
     chain_id: Option<u64>,
 }
 
@@ -188,12 +182,12 @@ impl Web3Manager {
         keypairs
     }
 
-    pub fn wei_to_eth(wei_val: U256) -> f64 {
+    pub fn wei_to_eth(&self, wei_val: U256) -> f64 {
         let res = wei_val.as_u128() as f64;
         res / 1_000_000_000_000_000_000.0
     }
 
-    pub fn eth_to_wei(eth_val: f64) -> U256 {
+    pub fn eth_to_wei(&self, eth_val: f64) -> U256 {
         let result = eth_val * 1_000_000_000_000_000_000.0;
         let result = result as u128;
         U256::from(result)
@@ -206,13 +200,15 @@ impl Web3Manager {
         return a;
     }
 
-    pub async fn get_token_balance(
-        &self,
-        contract_instance: &Contract<Http>,
-        account: H160,
-    ) -> U256 {
+    pub async fn get_token_balance(&self, token_address: &str, account: H160) -> U256 {
+        let token_abi = include_bytes!("../abi/TokenAbi.json");
+        let token_instance: Contract<Http> = self
+            .instance_contract(token_address, token_abi)
+            .await
+            .expect("error creating the router instance");
+
         let token_balance: U256 = self
-            .query_contract(&contract_instance, "balanceOf", account)
+            .query_contract(&token_instance, "balanceOf", account)
             .await
             .unwrap();
 
@@ -440,12 +436,9 @@ impl Web3Manager {
         .await
     }
 
-    // TODO(elsuizo:2022-03-03): verify this method
-    pub async fn set_token_balances(&mut self) {
-        for account in &self.accounts {
-            let balance = self.web3http.eth().balance(*account, None).await.unwrap();
-            self.balances.insert(*account, balance);
-        }
+    pub async fn get_eth_balance(&self, account: H160) -> U256 {
+        let balance = self.web3http.eth().balance(account, None).await.unwrap();
+        return balance;
     }
 
     // Counts the number of exececuted transactions by the loaded wallet to set the 'nonce' param for current transacction
@@ -471,23 +464,6 @@ impl Web3Manager {
             .insert(wallet, plain_private_key.to_string());
         self.accounts.push(wallet);
 
-        // load accounts balances
-        self.set_token_balances().await;
-
-        // get last nonce from loaded account
-        let nonce: U256 = self
-            .last_nonce()
-            .await
-            .expect("error getting the nonce parameter");
-
-        let gas_price: U256 = self
-            .web3http
-            .eth()
-            .gas_price()
-            .await
-            .expect("error getting the gas price parameter");
-        self.current_gas_price = gas_price;
-
         self
     }
 
@@ -507,8 +483,6 @@ impl Web3Manager {
         let balances: HashMap<H160, U256> = HashMap::new();
         let accounts_map: HashMap<H160, String> = HashMap::new();
 
-        let current_gas_price: U256 = U256::from(0);
-
         //let chain_id: Option<u64> = Option::Some(u64::try_from(web3http.eth().chain_id().await.unwrap()).unwrap());
         let chain_id: Option<u64> = Option::Some(u64::try_from(u64chain_id).unwrap());
 
@@ -518,7 +492,6 @@ impl Web3Manager {
             web3http,
             web3web_socket,
             accounts_map,
-            current_gas_price,
             chain_id,
         }
     }
@@ -649,10 +622,16 @@ impl Web3Manager {
     pub async fn approve_erc20_token(
         &mut self,
         account: H160,
-        contract_instance: Contract<Http>,
+        token_address: &str,
         spender: &str,
         value: &str,
     ) -> Result<H256, web3::Error> {
+        let token_abi = include_bytes!("../abi/TokenAbi.json");
+        let token_instance: Contract<Http> = self
+            .instance_contract(token_address, token_abi)
+            .await
+            .expect("error creating the router instance");
+
         let spender_address: Address = Address::from_str(spender).unwrap();
         let contract_function = "approve";
         let contract_function_parameters = (spender_address, U256::from_dec_str(value).unwrap());
@@ -660,7 +639,7 @@ impl Web3Manager {
         let send_tx_result = self
             .sign_and_send_tx(
                 account,
-                &contract_instance,
+                &token_instance,
                 &contract_function.to_string(),
                 &contract_function_parameters,
                 "0",
@@ -694,13 +673,20 @@ impl Web3Manager {
         // 2. encode_tx_data
         let tx_data: Bytes = self.encode_tx_data(contract_instance, func, params.clone());
 
+        let gas_price: U256 = self
+            .web3http
+            .eth()
+            .gas_price()
+            .await
+            .expect("error getting the gas price parameter");
+
         // 3. build tx parameters
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(
             self.last_nonce().await.unwrap(),
             contract_instance.address(),
             U256::from_dec_str(value).unwrap(),
             estimated_tx_gas,
-            self.current_gas_price,
+            gas_price,
             tx_data,
         );
 
@@ -716,12 +702,6 @@ impl Web3Manager {
             .await;
 
         return tx_result;
-
-        // NOTE(elsuizo:2022-03-05): esta es la unica linea de codigo que hace que se necesite un
-        // `&mut self` una de las reglas a seguir en Rust es no utilizar &mut cuando no es
-        // necesario ya que con esa informacion el compilador puede hacer mas optimizaciones y
-        // simplificaciones
-        // self.current_nonce = self.current_nonce + 1; // todo, check pending nonce dont works
     }
 
     pub async fn sent_eth(&mut self, account: H160, to: H160, amount: &str) {

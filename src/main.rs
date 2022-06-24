@@ -13,6 +13,13 @@ use web3_rust_wrapper::Web3Manager;
 use chrono::{Timelike, Utc};
 use std::thread;
 
+/*
+println!("y = sin(x) / x");
+Chart::default()
+    .lineplot(&Shape::Continuous(Box::new(|x| x.sin() / x)))
+    .display();
+    */
+
 #[tokio::main]
 async fn main() -> web3::Result<()> {
     dotenv::dotenv().ok();
@@ -26,9 +33,6 @@ async fn main() -> web3::Result<()> {
     let mut web3m: Web3Manager = init_web3_connection().await;
     let account: H160 = web3m.first_loaded_account();
 
-    let token_address = env::var("TOKEN_ADDRESS").unwrap();
-    let token_lp_address = env::var("TOKEN_LP_ADDRESS").unwrap();
-    let value = U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap();
     let max_slippage = 25usize;
     let mut slippage = 1usize;
 
@@ -39,39 +43,16 @@ async fn main() -> web3::Result<()> {
 
     let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
 
-    //TOKEN_ADDRESS="0xB9708A726a6C997d5A90515246E52A5fE4791CBE"
-    //TOKEN_LP_ADDRESS="0x8f7d1722Ceb8eA49ED1D081B27ebf21b61c316F2"
-
-    println!("");
-    println!("token_address {}", token_address.yellow());
-    println!("token_lp_address {}", token_lp_address.yellow());
-    println!("value {}", value);
-    println!("slippage {}", slippage);
-    println!("max_slippage {}", max_slippage);
-    println!("");
+    let (token_address, token_lp_address, value, account_puk, account_prk) =
+        get_env_variables().await;
 
     token_balance = web3m
         .get_token_balance(token_address.as_str(), account)
         .await;
     println!("Token Balance {}", web3m.wei_to_eth(token_balance));
 
-    let approve_tx = web3m
-        .approve_erc20_token(
-            account,
-            token_address.as_str(),
-            router_address,
-            "1000000000000000000000000000000",
-        )
-        .await
-        .unwrap();
-    println!("approve_tx {:?}", approve_tx);
+    do_approve(&web3m, token_address.as_str(), router_address, account).await;
     exit(0);
-    /*
-    println!("y = sin(x) / x");
-    Chart::default()
-        .lineplot(&Shape::Continuous(Box::new(|x| x.sin() / x)))
-        .display();
-        */
 
     println!("{}", "Checking Liquidity".yellow());
     check_has_liquidity(&web3m, token_lp_address.as_str()).await;
@@ -251,6 +232,44 @@ async fn calc_price_change_percent(old_price: f64, new_price: f64) -> f64 {
     return -1.0 * ((old_price - new_price) / new_price * 100.0);
 }
 
+async fn get_env_variables() -> (String, String, U256, String, String) {
+    let token_address = env::var("TOKEN_ADDRESS").unwrap();
+    let token_lp_address = env::var("TOKEN_LP_ADDRESS").unwrap();
+    let value = U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap();
+    let account_puk = env::var("ACCOUNT_ADDRESS").unwrap();
+    let account_prk = env::var("PRIVATE_TEST_KEY").unwrap();
+
+    println!("");
+    println!("token_address {}", token_address.yellow());
+    println!("token_lp_address {}", token_lp_address.yellow());
+    println!("value {}", value);
+    println!("account_puk {}", account_puk);
+    println!("account_prk {}", account_prk);
+    println!("");
+
+    return (
+        token_address,
+        token_lp_address,
+        value,
+        account_puk,
+        account_prk,
+    );
+}
+
+async fn do_approve(web3m: &Web3Manager, token_address: &str, router_address: &str, account: H160) {
+    let approve_tx = web3m
+        .clone()
+        .approve_erc20_token(
+            account,
+            token_address,
+            router_address,
+            "1000000000000000000000000000000",
+        )
+        .await
+        .unwrap();
+    println!("approve_tx {:?}", approve_tx);
+}
+
 async fn get_token_price(web3m: &Web3Manager, router_address: &str, token_address: &str) -> U256 {
     let path_address: Vec<&str> = vec![
         token_address,
@@ -272,8 +291,6 @@ async fn get_token_price(web3m: &Web3Manager, router_address: &str, token_addres
 async fn check_has_liquidity(web3m: &Web3Manager, token_lp_address: &str) -> bool {
     let mut has_liquidity: bool = false;
     while !has_liquidity {
-        println!("{}", chrono::offset::Local::now());
-
         // CHECK LIQUIDITY
         let lp_pair_instance = web3m.init_pair(token_lp_address).await;
         has_liquidity = web3m.token_has_liquidity(lp_pair_instance).await;
@@ -290,8 +307,7 @@ fn print_welcome() {
 
 async fn init_web3_connection() -> Web3Manager {
     let web3_http_url = "http://127.0.0.1:8545";
-    let web3_websocket_url =
-        "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/testnet/ws";
+    let web3_websocket_url = "ws://127.0.0.1:8545/ws";
     let mut web3m: Web3Manager = Web3Manager::new(web3_http_url, web3_websocket_url, 31337).await;
 
     web3m

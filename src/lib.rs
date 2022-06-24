@@ -356,22 +356,22 @@ impl Web3Manager {
 
         switch! { router_address;
             "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3" => {
-                println!("Input is equal to 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3");
+
                 router_abi_path = "../abi/PancakeRouterAbi.json";
                 contract_function = "swapExactETHForTokens";
             },
                 "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3" => {
-                println!("Input is equal to 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3");
+
                 router_abi_path = "../abi/PancakeRouterAbi.json";
                 contract_function = "swapExactETHForTokens";
             },
                 "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3" => {
-                println!("Input is equal to 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3");
+
                 router_abi_path = "../abi/PancakeRouterAbi.json";
                 contract_function = "swapExactETHForTokens";
             },
             _ => {
-                println!("Input is equal to 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3");
+
                 router_abi_path = "../abi/PancakeRouterAbi.json";
                 contract_function = "swapExactETHForTokens";
             },
@@ -620,7 +620,7 @@ impl Web3Manager {
     }
 
     pub async fn approve_erc20_token(
-        &mut self,
+        self,
         account: H160,
         token_address: &str,
         spender: &str,
@@ -637,6 +637,7 @@ impl Web3Manager {
         let contract_function_parameters = (spender_address, U256::from_dec_str(value).unwrap());
 
         let send_tx_result = self
+            .clone()
             .sign_and_send_tx(
                 account,
                 &token_instance,

@@ -27,6 +27,7 @@ thiserror = "1.0.30"
 hex-literal = "0.3.4"
 lazy_static = "1.4.0"
 dotenv = "0.15.0"
+webbrowser = "0.7.1"
 
 [dev-dependencies]
 dotenv = "0.15.0"

@@ -1,0 +1,5 @@
+
+get token price
+set buy price
+set stop stop
+set 

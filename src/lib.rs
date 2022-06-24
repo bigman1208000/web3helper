@@ -269,6 +269,24 @@ impl Web3Manager {
         Ok(send_tx_result.unwrap())
     }
 
+    pub async fn get_token_price(self, router_address: &str, pairs: Vec<H160>) -> U256 {
+        let router_abi = include_bytes!("../abi/PancakeRouterAbi.json");
+        let router_instance: Contract<Http> = self
+            .instance_contract(router_address, router_abi)
+            .await
+            .expect("error creating the router instance");
+
+        let amount_out: U256 = U256::from_dec_str("1000000000000000000").unwrap();
+        let parameter_out = (amount_out, pairs.clone());
+        let amount_out_min: Vec<Uint> = self
+            .query_contract(&router_instance, "getAmountsOut", parameter_out)
+            .await
+            .unwrap();
+        let min_amount = U256::from(amount_out_min[1].as_u128());
+
+        min_amount
+    }
+
     pub async fn swap_eth_for_exact_tokens(
         &mut self,
         account: H160,
@@ -837,7 +855,7 @@ impl Web3Manager {
     }
 
     pub async fn init_router_factory(&self) -> Contract<Http> {
-        let factory_abi = include_bytes!("../abi/RouterAbi.json");
+        let factory_abi = include_bytes!("../abi/PancakeFactoryAbi.json");
         let factory_address = "0xB7926C0430Afb07AA7DEfDE6DA862aE0Bde767bc";
         let factory_instance: Contract<Http> = self
             .instance_contract(factory_address, factory_abi)
@@ -848,7 +866,7 @@ impl Web3Manager {
 
     pub async fn init_router(&self) -> Contract<Http> {
         //let abi: Abi = load_abi_from_json("factoryabi.json");
-        let router_abi = include_bytes!("../abi/PancakeFactoryAbi.json");
+        let router_abi = include_bytes!("../abi/PancakeRouterAbi.json");
         let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
         let router_instance: Contract<Http> = self
             .instance_contract(router_address, router_abi)
@@ -867,10 +885,10 @@ impl Web3Manager {
     }
 
     pub async fn get_token_reserves(
-        web3m: Web3Manager,
+        &self,
         lp_pair_factory_instance: Contract<Http>,
     ) -> (U256, U256, U256) {
-        let lp_pair_reserves: (Uint, Uint, Uint) = web3m
+        let lp_pair_reserves: (Uint, Uint, Uint) = self
             .query_contract(&lp_pair_factory_instance, "getReserves", ())
             .await
             .unwrap();

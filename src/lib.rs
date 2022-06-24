@@ -141,7 +141,6 @@ pub struct Web3Manager {
     // web3 websocket instance (for listen contracts events)
     accounts_map: HashMap<H160, String>,
     // hashmap (like mapping on solidity) for store public and private keys
-    current_nonce: U256,
     current_gas_price: U256,
     chain_id: Option<u64>,
 }
@@ -207,6 +206,19 @@ impl Web3Manager {
         return a;
     }
 
+    pub async fn get_token_balance(
+        &self,
+        contract_instance: &Contract<Http>,
+        account: H160,
+    ) -> U256 {
+        let token_balance: U256 = self
+            .query_contract(&contract_instance, "balanceOf", account)
+            .await
+            .unwrap();
+
+        token_balance
+    }
+
     pub fn get_account_balance(&self, account: H160) -> U256 {
         self.balances[&account]
     }
@@ -223,50 +235,56 @@ impl Web3Manager {
     pub async fn swap_tokens_for_exact_tokens(
         &mut self,
         account: H160,
-        contract_instance: &Contract<Http>,
-        token_amount: &str,
+        router_address: &str,
+        token_amount: U256,
         pairs: &[&str],
         slippage: usize,
-    ) -> Result<H256, Box<dyn std::error::Error>> {
+    ) -> Result<H256, web3::Error> {
         let contract_function = "swapTokensForExactTokens";
-        let deadline = self.generate_deadline()?;
+        let deadline = self.generate_deadline().unwrap();
+
+        let router_abi = include_bytes!("../abi/PancakeRouterAbi.json");
+        let router_instance: Contract<Http> = self
+            .instance_contract(router_address, router_abi)
+            .await
+            .expect("error creating the router instance");
 
         let mut addresses = Vec::new();
         for pair in pairs {
             addresses.push(Address::from_str(pair).unwrap());
         }
 
-        let amount_out: U256 = U256::from_dec_str(token_amount).unwrap();
-        let parameter_out = (amount_out, addresses.clone());
+        let parameter_out = (token_amount, addresses.clone());
         let amount_out_min: Vec<Uint> = self
-            .query_contract(contract_instance, "getAmountsOut", parameter_out)
-            .await?;
+            .query_contract(&router_instance, "getAmountsOut", parameter_out)
+            .await
+            .unwrap();
 
         let min_amount = U256::from(amount_out_min[1].as_u128());
         let min_amount_less_slippage = min_amount - ((min_amount * slippage) / 100usize);
 
         let parameters2 = (
-            amount_out,
+            token_amount,
             min_amount_less_slippage,
             addresses,
             self.first_loaded_account(),
             deadline + 600usize,
         );
 
-        println!("amount_out: {:?}", amount_out);
+        println!("amount_out: {:?}", token_amount);
         println!("min_amount_less_slippage: {:?}", min_amount_less_slippage);
 
         let send_tx_result = self
             .sign_and_send_tx(
                 account,
-                contract_instance,
+                &router_instance,
                 contract_function,
                 &parameters2,
-                &U256::from("0").to_string(),
+                &amount_out_min[0].to_string(),
             )
             .await;
 
-        Ok(send_tx_result.unwrap())
+        send_tx_result
     }
 
     pub async fn get_token_price(self, router_address: &str, pairs: Vec<H160>) -> U256 {
@@ -287,11 +305,53 @@ impl Web3Manager {
         min_amount
     }
 
+    pub async fn swap_exact_tokens_for_tokens_supporting_fee_on_transfer_tokens(
+        &mut self,
+        account: H160,
+        router_address: &str,
+        token_amount: U256,
+        pairs: &[&str],
+    ) -> Result<H256, web3::Error> {
+        let contract_function: &str = "swapExactTokensForTokensSupportingFeeOnTransferTokens";
+
+        let router_abi = include_bytes!("../abi/PancakeRouterAbi.json");
+        let router_instance: Contract<Http> = self
+            .instance_contract(router_address, router_abi)
+            .await
+            .expect("error creating the router instance");
+
+        let mut addresses = Vec::new();
+        for pair in pairs {
+            addresses.push(Address::from_str(pair).unwrap());
+        }
+
+        let deadline = self.generate_deadline().unwrap();
+        let parameters = (
+            token_amount,
+            U256::from_dec_str("0").unwrap(),
+            addresses,
+            self.first_loaded_account(),
+            deadline + 600usize,
+        );
+
+        let send_tx_result = self
+            .sign_and_send_tx(
+                account,
+                &router_instance,
+                contract_function,
+                &parameters,
+                "0",
+            )
+            .await;
+
+        send_tx_result
+    }
+
     pub async fn swap_eth_for_exact_tokens(
         &mut self,
         account: H160,
         router_address: &str,
-        token_amount: &str,
+        token_amount: U256,
         pairs: &[&str],
         slippage: usize,
     ) -> Result<H256, web3::Error> {
@@ -332,8 +392,7 @@ impl Web3Manager {
             addresses.push(Address::from_str(pair).unwrap());
         }
 
-        let amount_out: U256 = U256::from_dec_str(token_amount).unwrap();
-        let parameter_out = (amount_out, addresses.clone());
+        let parameter_out = (token_amount, addresses.clone());
         let amount_out_min: Vec<Uint> = self
             .query_contract(&router_instance, "getAmountsOut", parameter_out)
             .await
@@ -420,7 +479,6 @@ impl Web3Manager {
             .last_nonce()
             .await
             .expect("error getting the nonce parameter");
-        self.current_nonce = nonce;
 
         let gas_price: U256 = self
             .web3http
@@ -449,7 +507,6 @@ impl Web3Manager {
         let balances: HashMap<H160, U256> = HashMap::new();
         let accounts_map: HashMap<H160, String> = HashMap::new();
 
-        let current_nonce: U256 = U256::from(0);
         let current_gas_price: U256 = U256::from(0);
 
         //let chain_id: Option<u64> = Option::Some(u64::try_from(web3http.eth().chain_id().await.unwrap()).unwrap());
@@ -461,7 +518,6 @@ impl Web3Manager {
             web3http,
             web3web_socket,
             accounts_map,
-            current_nonce,
             current_gas_price,
             chain_id,
         }
@@ -504,10 +560,6 @@ impl Web3Manager {
             .send_raw_transaction(raw_transaction)
             .await
             .unwrap()
-    }
-
-    fn update_nonce(&mut self) {
-        self.current_nonce = self.current_nonce + 1;
     }
 
     // The transactions must be signed with the private key of the wallet that executes it
@@ -644,7 +696,7 @@ impl Web3Manager {
 
         // 3. build tx parameters
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(
-            self.current_nonce,
+            self.last_nonce().await.unwrap(),
             contract_instance.address(),
             U256::from_dec_str(value).unwrap(),
             estimated_tx_gas,
@@ -663,7 +715,6 @@ impl Web3Manager {
             .send_raw_transaction(signed_transaction.raw_transaction)
             .await;
 
-        self.update_nonce();
         return tx_result;
 
         // NOTE(elsuizo:2022-03-05): esta es la unica linea de codigo que hace que se necesite un

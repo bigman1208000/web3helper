@@ -1,10 +1,16 @@
 use chrono;
 use colored::Colorize;
 use std::env;
+use std::process::exit;
 use std::str::FromStr;
+use web3::contract::Contract;
 use web3::helpers as w3h;
+use web3::transports::Http;
 use web3::types::{Address, H160, U256};
 use web3_rust_wrapper::Web3Manager;
+//use textplots::{Chart, Plot, Shape};
+use chrono::{Timelike, Utc};
+
 #[tokio::main]
 async fn main() -> web3::Result<()> {
     dotenv::dotenv().ok();
@@ -20,12 +26,14 @@ async fn main() -> web3::Result<()> {
 
     let token_address = env::var("TOKEN_ADDRESS").unwrap();
     let token_lp_address = env::var("TOKEN_LP_ADDRESS").unwrap();
-    let value = env::var("INVEST_AMOUNT").unwrap();
+    let value = U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap();
     let max_slippage = 10usize;
     let mut slippage = 1usize;
 
     let mut buy_price = U256::from_str("0").unwrap();
-    let mut sell_price = U256::from_str("0").unwrap();
+    let take_profit_pencent = 0.4;
+    let stop_loss_percent = -0.4;
+    let mut token_balance: U256;
 
     let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
 
@@ -35,25 +43,55 @@ async fn main() -> web3::Result<()> {
     println!("");
     println!("token_address {}", token_address.yellow());
     println!("token_lp_address {}", token_lp_address.yellow());
-    println!("value {}", value.yellow());
+    println!("value {}", value);
     println!("slippage {}", slippage);
     println!("max_slippage {}", max_slippage);
     println!("");
+
+    let token_abi = include_bytes!("../abi/TokenAbi.json");
+    let token_instance: Contract<Http> = web3m
+        .instance_contract(token_address.as_str(), token_abi)
+        .await
+        .expect("error creating the router instance");
+
+    let approve_tx = web3m
+        .approve_erc20_token(
+            account,
+            token_instance.clone(),
+            router_address,
+            "1000000000000000000000000000000",
+        )
+        .await
+        .unwrap();
+    println!("approve_tx {:?}", approve_tx);
+
+    /*
+    println!("y = sin(x) / x");
+    Chart::default()
+        .lineplot(&Shape::Continuous(Box::new(|x| x.sin() / x)))
+        .display();
+        */
 
     println!("{}", "Checking Liquidity".yellow());
     check_has_liquidity(&web3m, token_lp_address.as_str()).await;
 
     while !buy_tx_ok && slippage < max_slippage {
+        print!("{}[2J", 27 as char);
         let token_price = get_token_price(&web3m, router_address, token_address.as_str()).await;
 
         if slippage == max_slippage {
             println!("{}", "Max Slippage exceded".red());
         }
 
+        let now = Utc::now();
+        let (is_pm, hour) = now.hour12();
+
         println!(
-            "Token Price: {} {} {} with {}% slippage",
-            token_price,
-            chrono::offset::Local::now(),
+            "[{:02}:{:02}:{:02}] : {} {} with {}% slippage",
+            hour,
+            now.minute(),
+            now.second(),
+            wei_to_eth(token_price),
             "Trying buy ".yellow(),
             slippage
         );
@@ -64,13 +102,7 @@ async fn main() -> web3::Result<()> {
         ];
 
         let tx_result = web3m
-            .swap_eth_for_exact_tokens(
-                account,
-                router_address,
-                value.as_str(),
-                &path_address,
-                slippage,
-            )
+            .swap_eth_for_exact_tokens(account, router_address, value, &path_address, slippage)
             .await;
 
         if tx_result.is_ok() {
@@ -99,11 +131,109 @@ async fn main() -> web3::Result<()> {
         println!("buy_price: {:?}", buy_price);
     }
 
+    token_balance = web3m.get_token_balance(&token_instance, account).await;
+    //println!("Token Balance {}", token_balance);
+
     while !sell_tx_ok {
+        print!("{}[2J", 27 as char);
         let token_price = get_token_price(&web3m, router_address, token_address.as_str()).await;
         let price_change_percent =
             calc_price_change_percent(wei_to_eth(buy_price), wei_to_eth(token_price)).await;
-        println!("Token Price: {} {}% ", token_price, price_change_percent);
+
+        let now = Utc::now();
+        let (is_pm, hour) = now.hour12();
+
+        println!(
+            "[{:02}:{:02}:{:02}] - Price: {} BNB | Change: {}",
+            hour,
+            now.minute(),
+            now.second(),
+            wei_to_eth(token_price),
+            price_change_percent
+        );
+
+        // TAKE PROFIT LOSS
+        if price_change_percent > take_profit_pencent {
+            println!("{}", "TAKE PROFIT".red());
+
+            let path_address: Vec<&str> = vec![
+                token_address.as_str(),
+                "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd", // BNB
+            ];
+
+            let tx_result = web3m
+                .swap_exact_tokens_for_tokens_supporting_fee_on_transfer_tokens(
+                    account,
+                    router_address,
+                    token_balance,
+                    &path_address,
+                )
+                .await;
+
+            if tx_result.is_ok() {
+                println!("{}", "SELL Tx Completed Successfully".green());
+
+                println!("Token Balance {}", token_balance);
+                //println!("tx_id: {:?}", tx_result.unwrap());
+
+                let mut tx_url: String = "https://testnet.bscscan.com/tx/".to_owned();
+                tx_url.push_str(
+                    w3h::to_string(&tx_result.unwrap())
+                        .replace("\"", "")
+                        .as_str(),
+                );
+
+                if webbrowser::open(tx_url.as_str()).is_ok() {
+                    // ...
+                }
+
+                sell_tx_ok = true;
+            } else {
+                println!("{}", tx_result.err().unwrap().to_string().red());
+            }
+            println!("sell_stop_loss_price: {:?}", token_price);
+        }
+
+        // STOP LOSS
+        if price_change_percent < stop_loss_percent {
+            println!("{}", "STOP LOSS".red());
+
+            let path_address: Vec<&str> = vec![
+                token_address.as_str(),
+                "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd", // BNB
+            ];
+
+            let tx_result = web3m
+                .swap_exact_tokens_for_tokens_supporting_fee_on_transfer_tokens(
+                    account,
+                    router_address,
+                    token_balance,
+                    &path_address,
+                )
+                .await;
+
+            if tx_result.is_ok() {
+                println!("{}", "SELL Tx Completed Successfully".green());
+
+                //println!("tx_id: {:?}", tx_result.unwrap());
+
+                let mut tx_url: String = "https://testnet.bscscan.com/tx/".to_owned();
+                tx_url.push_str(
+                    w3h::to_string(&tx_result.unwrap())
+                        .replace("\"", "")
+                        .as_str(),
+                );
+
+                if webbrowser::open(tx_url.as_str()).is_ok() {
+                    // ...
+                }
+
+                sell_tx_ok = true;
+            } else {
+                println!("{}", tx_result.err().unwrap().to_string().red());
+            }
+            println!("sell_stop_loss_price: {:?}", token_price);
+        }
     }
 
     Ok(())
@@ -121,10 +251,6 @@ pub fn eth_to_wei(eth_val: f64) -> U256 {
 }
 
 async fn calc_price_change_percent(old_price: f64, new_price: f64) -> f64 {
-    //var res = (y - x) / x * 100.0;
-    //var ress = (w - x) / x * 100.0;
-    //var percentchange = (june - current) / current * 100.0;
-
     return -1.0 * ((old_price - new_price) / new_price * 100.0);
 }
 

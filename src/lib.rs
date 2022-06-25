@@ -26,6 +26,7 @@ use web3::contract::tokens::{Detokenize, Tokenize};
 use web3::contract::{Contract, Options};
 use web3::ethabi::ethereum_types::H256;
 use web3::ethabi::{Int, Uint};
+use web3::helpers as w3h;
 use web3::signing::keccak256;
 use web3::transports::{Http, WebSocket};
 use web3::types::{
@@ -347,12 +348,17 @@ impl Web3Manager {
         &mut self,
         account: H160,
         router_address: &str,
+        token_address: &str,
         token_amount: U256,
-        pairs: &[&str],
         slippage: usize,
     ) -> Result<H256, web3::Error> {
         let mut router_abi_path = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
         let mut contract_function: &str = "swapExactETHForTokens";
+
+        let path_address: Vec<&str> = vec![
+            "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd", // BNB
+            token_address,
+        ];
 
         switch! { router_address;
             "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3" => {
@@ -384,7 +390,7 @@ impl Web3Manager {
             .expect("error creating the router instance");
 
         let mut addresses = Vec::new();
-        for pair in pairs {
+        for pair in path_address {
             addresses.push(Address::from_str(pair).unwrap());
         }
 
@@ -912,8 +918,26 @@ impl Web3Manager {
             .query_contract(&lp_pair_factory_instance, "getReserves", ())
             .await
             .unwrap();
-        println!("lp_pair_reserves: {:?}", lp_pair_reserves);
         lp_pair_reserves.0 > U256::from(0) && lp_pair_reserves.1 > U256::from(0)
+    }
+
+    pub async fn find_lp_pair(&self, token_address: &str) -> String {
+        let factory_instance = self.init_router_factory().await;
+
+        let weth = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
+
+        let lp_pair_address: H160 = self
+            .query_contract(
+                &factory_instance,
+                "getPair",
+                (
+                    H160::from_str(weth).unwrap(),
+                    H160::from_str(token_address).unwrap(),
+                ),
+            )
+            .await
+            .unwrap();
+        w3h::to_string(&lp_pair_address).replace("\"", "")
     }
 
     pub async fn get_token_reserves(

@@ -29,35 +29,32 @@ async fn main() -> web3::Result<()> {
         stop_loss_percent,
         is_trading_active,
         token_address,
+        token_lp_address,
         value,
         account_puk,
         account_prk,
     ) = initialize_values().await;
 
-    //do_approve(&web3m, token_address.as_str(), router_address, account).await;
-    //exit(0);
-
-    let token_lp_address = web3m.find_lp_pair(token_address.as_str()).await;
     let mut buy_tx_ok: bool = false;
     let mut sell_tx_ok: bool = false;
 
     // CHECK IF TOKEN HAS LIQUIDITY
-    println!("{}", "Checking Liquidity".yellow());
-    check_has_liquidity(&web3m, token_lp_address.as_str()).await;
-
     // CHECK TRADING ENABLE
-    check_trading_enable(&web3m, account, token_address.as_str()).await;
-
-    // CHECK TRADING ENABLE
-    try_sell(&web3m, account, token_address.as_str()).await;
+    // CHECK HONEYPOT
+    check_before_buy(
+        &web3m,
+        account,
+        token_address.as_str(),
+        token_lp_address.as_str(),
+    )
+    .await;
 
     // CHECK TRADING ENABLE
     //try_buy(&web3m, account, token_lp_address.as_str()).await;
 
     //exit(0);
-    let ftoken_price = get_token_price(&web3m, router_address, token_address.as_str()).await;
 
-    let buy_price = ftoken_price;
+    let buy_price = get_token_price(&web3m, router_address, token_address.as_str()).await;
 
     let token_balance = web3m
         .get_token_balance(token_address.as_str(), account)
@@ -65,7 +62,7 @@ async fn main() -> web3::Result<()> {
     println!("Token Balance {}", web3m.wei_to_eth(token_balance));
 
     while !sell_tx_ok {
-        print!("{}[2J", 27 as char);
+        clear_screen();
         let token_price = get_token_price(&web3m, router_address, token_address.as_str()).await;
         let price_change_percent =
             calc_price_change_percent(web3m.wei_to_eth(buy_price), web3m.wei_to_eth(token_price));
@@ -92,46 +89,6 @@ async fn main() -> web3::Result<()> {
 
             sell_all(&web3m, account, token_address.as_str()).await;
 
-            //open_tx_on_browser(tx_result);
-
-            sell_tx_ok = true;
-
-            let path_address: Vec<&str> = vec![
-                token_address.as_str(),
-                "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd", // BNB
-            ];
-
-            let tx_result = web3m
-                .clone()
-                .swap_exact_tokens_for_tokens_supporting_fee_on_transfer_tokens(
-                    account,
-                    router_address,
-                    token_balance,
-                    &path_address,
-                )
-                .await;
-
-            if tx_result.is_ok() {
-                println!("{}", "SELL Tx Completed Successfully".green());
-
-                println!("Token Balance {}", token_balance);
-                //println!("tx_id: {:?}", tx_result.unwrap());
-
-                let mut tx_url: String = "https://testnet.bscscan.com/tx/".to_owned();
-                tx_url.push_str(
-                    w3h::to_string(&tx_result.unwrap())
-                        .replace("\"", "")
-                        .as_str(),
-                );
-
-                if webbrowser::open(tx_url.as_str()).is_ok() {
-                    // ...
-                }
-
-                sell_tx_ok = true;
-            } else {
-                println!("{}", tx_result.err().unwrap().to_string().red());
-            }
             println!("sell_stop_loss_price: {:?}", token_price);
         }
 
@@ -139,35 +96,17 @@ async fn main() -> web3::Result<()> {
         if price_change_percent < stop_loss_percent {
             println!("{}", "STOP LOSS".red());
 
-            let path_address: Vec<&str> = vec![
-                token_address.as_str(),
-                "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd", // BNB
-            ];
+            sell_all(&web3m, account, token_address.as_str()).await;
 
-            let tx_result = web3m
-                .clone()
-                .swap_exact_tokens_for_tokens_supporting_fee_on_transfer_tokens(
-                    account,
-                    router_address,
-                    token_balance,
-                    &path_address,
-                )
-                .await;
-
-            if tx_result.is_ok() {
-                println!("{}", "SELL Tx Completed Successfully".green());
-
-                open_tx_on_browser(tx_result);
-
-                sell_tx_ok = true;
-            } else {
-                println!("{}", tx_result.err().unwrap().to_string().red());
-            }
             println!("sell_stop_loss_price: {:?}", token_price);
         }
     }
 
     Ok(())
+}
+
+fn clear_screen() {
+    print!("{}[2J", 27 as char);
 }
 
 fn open_tx_on_browser(tx_result: Result<H256, web3::Error>) {
@@ -224,6 +163,23 @@ async fn get_token_price(web3m: &Web3Manager, router_address: &str, token_addres
         .await;
 
     token_price
+}
+
+async fn check_before_buy(
+    web3m: &Web3Manager,
+    account: H160,
+    token_address: &str,
+    token_lp_address: &str,
+) {
+    // CHECK IF TOKEN HAS LIQUIDITY
+    println!("{}", "Checking Liquidity".yellow());
+    check_has_liquidity(&web3m, token_lp_address).await;
+
+    // CHECK TRADING ENABLE
+    check_trading_enable(&web3m, account, token_address).await;
+
+    // CHECK HONEYPOT
+    try_sell(&web3m, account, token_address).await;
 }
 
 async fn check_trading_enable(web3m: &Web3Manager, account: H160, token_address: &str) -> bool {
@@ -358,10 +314,12 @@ async fn try_sell(web3m: &Web3Manager, account: H160, token_address: &str) -> bo
     buy_tx_ok
 }
 
-async fn sell_all(web3m: &Web3Manager, account: H160, token_address: &str) -> bool {
+async fn sell_all(web3m: &Web3Manager, account: H160, token_address: &str) {
     let mut sell_ok: bool = false;
     let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
     do_approve(web3m.clone(), token_address, router_address, account).await;
+
+    let mut tx_result: Result<H256, web3::Error>;
 
     while !sell_ok {
         let token_balance = web3m.get_token_balance(token_address, account).await;
@@ -390,7 +348,6 @@ async fn sell_all(web3m: &Web3Manager, account: H160, token_address: &str) -> bo
             println!("{}", tx_result.err().unwrap().to_string().red());
         }
     }
-    sell_ok
 }
 
 fn print_welcome() {
@@ -437,6 +394,7 @@ async fn initialize_values() -> (
     f64,
     bool,
     String,
+    String,
     U256,
     String,
     String,
@@ -455,6 +413,8 @@ async fn initialize_values() -> (
 
     let (token_address, value, account_puk, account_prk) = get_env_variables().await;
 
+    let token_lp_address = web3m.find_lp_pair(token_address.as_str()).await;
+
     return (
         web3m,
         account,
@@ -464,6 +424,7 @@ async fn initialize_values() -> (
         stop_loss_percent,
         is_trading_active,
         token_address,
+        token_lp_address,
         value,
         account_puk,
         account_prk,

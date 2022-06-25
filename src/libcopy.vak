@@ -30,8 +30,8 @@ use web3::helpers as w3h;
 use web3::signing::keccak256;
 use web3::transports::{Http, WebSocket};
 use web3::types::{
-    Address, BlockNumber, Bytes, FilterBuilder, Log, SignedTransaction, TransactionId,
-    TransactionParameters, H160, U256, U64,
+    Address, Bytes, FilterBuilder, Log, SignedTransaction, TransactionId, TransactionParameters,
+    H160, U256, U64,
 };
 use web3::Web3;
 
@@ -136,13 +136,14 @@ pub struct Web3Manager {
     pub web3web_socket: Web3<WebSocket>,
     // web3 websocket instance (for listen contracts events)
     accounts_map: HashMap<H160, String>,
+    current_nonce: u64,
     // hashmap (like mapping on solidity) for store public and private keys
     chain_id: Option<u64>,
 }
 
 impl Web3Manager {
     pub async fn instance_contract(
-        &mut self,
+        &self,
         plain_contract_address: &str,
         abi_path: &[u8],
     ) -> Result<Contract<Http>, Box<dyn std::error::Error>> {
@@ -183,12 +184,12 @@ impl Web3Manager {
         keypairs
     }
 
-    pub fn wei_to_eth(&mut self, wei_val: U256) -> f64 {
+    pub fn wei_to_eth(&self, wei_val: U256) -> f64 {
         let res = wei_val.as_u128() as f64;
         res / 1_000_000_000_000_000_000.0
     }
 
-    pub fn eth_to_wei(&mut self, eth_val: f64) -> U256 {
+    pub fn eth_to_wei(&self, eth_val: f64) -> U256 {
         let result = eth_val * 1_000_000_000_000_000_000.0;
         let result = result as u128;
         U256::from(result)
@@ -201,7 +202,7 @@ impl Web3Manager {
         return a;
     }
 
-    pub async fn get_token_balance(&mut self, token_address: &str, account: H160) -> U256 {
+    pub async fn get_token_balance(&self, token_address: &str, account: H160) -> U256 {
         let token_abi = include_bytes!("../abi/TokenAbi.json");
         let token_instance: Contract<Http> = self
             .instance_contract(token_address, token_abi)
@@ -216,7 +217,7 @@ impl Web3Manager {
         token_balance
     }
 
-    pub fn get_account_balance(&mut self, account: H160) -> U256 {
+    pub fn get_account_balance(&self, account: H160) -> U256 {
         self.balances[&account]
     }
 
@@ -271,11 +272,6 @@ impl Web3Manager {
         println!("amount_out: {:?}", token_amount);
         println!("min_amount_less_slippage: {:?}", min_amount_less_slippage);
 
-        let nonce: U256 = self
-            .last_nonce()
-            .await
-            .expect("error getting the nonce parameter");
-
         let send_tx_result = self
             .sign_and_send_tx(
                 account,
@@ -283,14 +279,13 @@ impl Web3Manager {
                 contract_function,
                 &parameters2,
                 &amount_out_min[0].to_string(),
-                nonce.as_u64(),
             )
             .await;
 
         send_tx_result
     }
 
-    pub async fn get_token_price(&mut self, router_address: &str, pairs: Vec<H160>) -> U256 {
+    pub async fn get_token_price(self, router_address: &str, pairs: Vec<H160>) -> U256 {
         let router_abi = include_bytes!("../abi/PancakeRouterAbi.json");
         let router_instance: Contract<Http> = self
             .instance_contract(router_address, router_abi)
@@ -337,11 +332,6 @@ impl Web3Manager {
             deadline + 600usize,
         );
 
-        let nonce: U256 = self
-            .last_nonce()
-            .await
-            .expect("error getting the nonce parameter");
-
         let send_tx_result = self
             .sign_and_send_tx(
                 account,
@@ -349,9 +339,10 @@ impl Web3Manager {
                 contract_function,
                 &parameters,
                 "0",
-                nonce.as_u64(),
             )
             .await;
+
+        self.update_nonce();
 
         send_tx_result
     }
@@ -422,11 +413,6 @@ impl Web3Manager {
             deadline + 600usize,
         );
 
-        let nonce: U256 = self
-            .last_nonce()
-            .await
-            .expect("error getting the nonce parameter");
-
         let send_tx_result = self
             .sign_and_send_tx(
                 account,
@@ -434,7 +420,6 @@ impl Web3Manager {
                 contract_function,
                 &parameters,
                 &amount_out_min[0].to_string(),
-                nonce.as_u64(),
             )
             .await;
 
@@ -442,7 +427,7 @@ impl Web3Manager {
     }
 
     pub async fn get_out_estimated_tokens_for_tokens(
-        &mut self,
+        &self,
         contract_instance: &Contract<Http>,
         pair_a: &str,
         pair_b: &str,
@@ -459,7 +444,7 @@ impl Web3Manager {
         .await
     }
 
-    pub async fn get_eth_balance(&mut self, account: H160) -> U256 {
+    pub async fn get_eth_balance(&self, account: H160) -> U256 {
         let balance = self.web3http.eth().balance(account, None).await.unwrap();
         return balance;
     }
@@ -467,20 +452,10 @@ impl Web3Manager {
     // Counts the number of exececuted transactions by the loaded wallet to set the 'nonce' param for current transacction
     // Cuenta el número de transacciones se han ejecutado con la wallet cargada para establecer el parámetro 'nonce' en la transacción actual
     pub async fn last_nonce(&self) -> Result<U256, web3::Error> {
-        let block_number: Option<BlockNumber> = Option::Some(BlockNumber::Latest);
-
         self.web3http
             .eth()
-            .transaction_count(self.first_loaded_account(), block_number)
+            .transaction_count(self.first_loaded_account(), None)
             .await
-
-        /*
-
-               self.web3http
-        .eth()
-        .transaction_count(self.first_loaded_account(), None)
-        .await
-        */
     }
 
     pub async fn load_account(
@@ -496,6 +471,13 @@ impl Web3Manager {
         self.accounts_map
             .insert(wallet, plain_private_key.to_string());
         self.accounts.push(wallet);
+
+        // get last nonce from loaded account
+        let nonce: U256 = self
+            .last_nonce()
+            .await
+            .expect("error getting the nonce parameter");
+        self.current_nonce = nonce.as_u64();
 
         self
     }
@@ -516,7 +498,7 @@ impl Web3Manager {
         let balances: HashMap<H160, U256> = HashMap::new();
         let accounts_map: HashMap<H160, String> = HashMap::new();
 
-        //let current_nonce: U256 = U256::from_dec_str("0").unwrap();
+        let current_nonce: U256 = U256::from_dec_str("0").unwrap();
 
         //let chain_id: Option<u64> = Option::Some(u64::try_from(web3http.eth().chain_id().await.unwrap()).unwrap());
         let chain_id: Option<u64> = Option::Some(u64::try_from(u64chain_id).unwrap());
@@ -527,6 +509,7 @@ impl Web3Manager {
             web3http,
             web3web_socket,
             accounts_map,
+            current_nonce: current_nonce.as_u64(),
             chain_id,
         }
     }
@@ -544,7 +527,7 @@ impl Web3Manager {
     }
 
     pub async fn query_contract<P, T>(
-        &mut self,
+        &self,
         contract_instance: &Contract<Http>,
         func: &str,
         params: P,
@@ -562,7 +545,7 @@ impl Web3Manager {
     // To execute a function in a contract it has to be sent as a raw transaction which is the basic transaction format
     // Para ejecutar cualquier transacción en un contrato ha de ser mandada como una transacción de tipo raw,
     // que es el formato básico de las transaaciones
-    pub async fn send_raw_transaction(&mut self, raw_transaction: Bytes) -> H256 {
+    pub async fn send_raw_transaction(&self, raw_transaction: Bytes) -> H256 {
         self.web3http
             .eth()
             .send_raw_transaction(raw_transaction)
@@ -573,7 +556,7 @@ impl Web3Manager {
     // The transactions must be signed with the private key of the wallet that executes it
     // Las transacciones han de ser firmadas con la clave privada de la cartera que la ejecuta
     pub async fn sign_transaction(
-        &mut self,
+        &self,
         account: H160,
         transact_obj: TransactionParameters,
     ) -> SignedTransaction {
@@ -588,7 +571,7 @@ impl Web3Manager {
     }
 
     pub fn encode_tx_parameters(
-        &mut self,
+        &self,
         nonce: U256,
         to: Address,
         value: U256,
@@ -609,7 +592,7 @@ impl Web3Manager {
     }
 
     // TODO(elsuizo:2022-03-03): add a `Result` here
-    pub fn encode_tx_data<P>(&mut self, contract: &Contract<Http>, func: &str, params: P) -> Bytes
+    pub fn encode_tx_data<P>(&self, contract: &Contract<Http>, func: &str, params: P) -> Bytes
     where
         P: Tokenize,
     {
@@ -623,7 +606,7 @@ impl Web3Manager {
     }
 
     pub async fn estimate_tx_gas<P>(
-        &mut self,
+        &self,
         contract: &Contract<Http>,
         func: &str,
         params: P,
@@ -655,7 +638,7 @@ impl Web3Manager {
     }
 
     pub async fn approve_erc20_token(
-        &mut self,
+        self,
         account: H160,
         token_address: &str,
         spender: &str,
@@ -671,11 +654,6 @@ impl Web3Manager {
         let contract_function = "approve";
         let contract_function_parameters = (spender_address, U256::from_dec_str(value).unwrap());
 
-        let nonce: U256 = self
-            .last_nonce()
-            .await
-            .expect("error getting the nonce parameter");
-
         let send_tx_result = self
             .clone()
             .sign_and_send_tx(
@@ -684,7 +662,6 @@ impl Web3Manager {
                 &contract_function.to_string(),
                 &contract_function_parameters,
                 "0",
-                nonce.as_u64(),
             )
             .await;
 
@@ -698,7 +675,6 @@ impl Web3Manager {
         func: &str,
         params: &P,
         value: &str,
-        current_nonce: u64,
     ) -> Result<H256, web3::Error>
     where
         P: Tokenize,
@@ -725,7 +701,7 @@ impl Web3Manager {
 
         // 3. build tx parameters
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(
-            U256::from(current_nonce),
+            U256::from(self.current_nonce),
             contract_instance.address(),
             U256::from_dec_str(value).unwrap(),
             estimated_tx_gas,
@@ -737,6 +713,8 @@ impl Web3Manager {
         let signed_transaction: SignedTransaction =
             self.sign_transaction(account, tx_parameters).await;
 
+        println!("self.current_nonce: {:?}", self.current_nonce);
+
         // send tx
         let tx_result = self
             .web3http
@@ -744,7 +722,14 @@ impl Web3Manager {
             .send_raw_transaction(signed_transaction.raw_transaction)
             .await;
 
+        self.update_nonce();
+        println!("self.current_nonce after: {:?}", self.current_nonce);
+
         return tx_result;
+    }
+
+    fn update_nonce(&mut self) {
+        self.current_nonce = self.current_nonce + 1;
     }
 
     pub async fn sent_eth(&mut self, account: H160, to: H160, amount: &str) {
@@ -792,11 +777,6 @@ impl Web3Manager {
         let contract_function_parameters =
             (recipient_address, U256::from_dec_str(token_amount).unwrap());
 
-        let nonce: U256 = self
-            .last_nonce()
-            .await
-            .expect("error getting the nonce parameter");
-
         let send_tx_result = self
             .sign_and_send_tx(
                 account,
@@ -804,7 +784,6 @@ impl Web3Manager {
                 contract_function,
                 &contract_function_parameters,
                 "0",
-                nonce.as_u64(),
             )
             .await;
 
@@ -816,7 +795,7 @@ impl Web3Manager {
     //-------------------------------------------------------------------------
 
     pub async fn get_latest_price(
-        &mut self,
+        &self,
         network: impl crate::traits::GetAddress,
         pair_address: &str,
     ) -> Int {
@@ -835,7 +814,7 @@ impl Web3Manager {
 
     /*
         pub async fn access_controller(
-        &mut self,
+        &self,
         feed: impl crate::traits::GetAddress,
         pair: &str,
     ) -> Result<Address, web3::contract::Error> {
@@ -849,7 +828,7 @@ impl Web3Manager {
     }
      */
 
-    pub async fn listen_contract_events(&mut self, contract_address: &str) {
+    pub async fn listen_contract_events(&self, contract_address: &str) {
         /*
         let filter = FilterBuilder::default()
         .address(vec![contract.address()])
@@ -907,7 +886,7 @@ impl Web3Manager {
     }
 
     pub async fn build_contract_events(
-        &mut self,
+        &self,
         contract_address: &str,
     ) -> SubscriptionStream<WebSocket, Log> {
         let filter = FilterBuilder::default()
@@ -924,7 +903,7 @@ impl Web3Manager {
         return sub;
     }
 
-    pub async fn init_pair(&mut self, lp_address: &str) -> Contract<Http> {
+    pub async fn init_pair(&self, lp_address: &str) -> Contract<Http> {
         let lp_pair_abi = include_bytes!("../abi/PancakeLPTokenAbi.json");
         let lp_pair_instance_address = lp_address;
         let lp_pair_instance: Contract<Http> = self
@@ -934,7 +913,7 @@ impl Web3Manager {
         lp_pair_instance
     }
 
-    pub async fn init_router_factory(&mut self) -> Contract<Http> {
+    pub async fn init_router_factory(&self) -> Contract<Http> {
         let factory_abi = include_bytes!("../abi/PancakeFactoryAbi.json");
         let factory_address = "0xB7926C0430Afb07AA7DEfDE6DA862aE0Bde767bc";
         let factory_instance: Contract<Http> = self
@@ -944,7 +923,7 @@ impl Web3Manager {
         factory_instance
     }
 
-    pub async fn init_router(&mut self) -> Contract<Http> {
+    pub async fn init_router(&self) -> Contract<Http> {
         //let abi: Abi = load_abi_from_json("factoryabi.json");
         let router_abi = include_bytes!("../abi/PancakeRouterAbi.json");
         let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
@@ -955,7 +934,7 @@ impl Web3Manager {
         router_instance
     }
 
-    pub async fn token_has_liquidity(&mut self, lp_pair_factory_instance: Contract<Http>) -> bool {
+    pub async fn token_has_liquidity(&self, lp_pair_factory_instance: Contract<Http>) -> bool {
         let lp_pair_reserves: (Uint, Uint, Uint) = self
             .query_contract(&lp_pair_factory_instance, "getReserves", ())
             .await
@@ -963,7 +942,7 @@ impl Web3Manager {
         lp_pair_reserves.0 > U256::from(0) && lp_pair_reserves.1 > U256::from(0)
     }
 
-    pub async fn find_lp_pair(&mut self, token_address: &str) -> String {
+    pub async fn find_lp_pair(&self, token_address: &str) -> String {
         let factory_instance = self.init_router_factory().await;
 
         let weth = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
@@ -983,7 +962,7 @@ impl Web3Manager {
     }
 
     pub async fn get_token_reserves(
-        &mut self,
+        &self,
         lp_pair_factory_instance: Contract<Http>,
     ) -> (U256, U256, U256) {
         let lp_pair_reserves: (Uint, Uint, Uint) = self

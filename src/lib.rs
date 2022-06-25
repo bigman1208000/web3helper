@@ -136,6 +136,7 @@ pub struct Web3Manager {
     pub web3web_socket: Web3<WebSocket>,
     // web3 websocket instance (for listen contracts events)
     accounts_map: HashMap<H160, String>,
+    current_nonce: U256,
     // hashmap (like mapping on solidity) for store public and private keys
     chain_id: Option<u64>,
 }
@@ -341,6 +342,8 @@ impl Web3Manager {
             )
             .await;
 
+        self.update_nonce();
+
         send_tx_result
     }
 
@@ -404,7 +407,7 @@ impl Web3Manager {
         let min_amount_less_slippage = min_amount - ((min_amount * slippage) / 100usize);
 
         let deadline = self.generate_deadline().unwrap();
-        let parameters2 = (
+        let parameters = (
             min_amount_less_slippage,
             addresses,
             self.first_loaded_account(),
@@ -416,10 +419,12 @@ impl Web3Manager {
                 account,
                 &router_instance,
                 contract_function,
-                &parameters2,
+                &parameters,
                 &amount_out_min[0].to_string(),
             )
             .await;
+
+        self.update_nonce();
 
         send_tx_result
     }
@@ -470,6 +475,13 @@ impl Web3Manager {
             .insert(wallet, plain_private_key.to_string());
         self.accounts.push(wallet);
 
+        // get last nonce from loaded account
+        let nonce: U256 = self
+            .last_nonce()
+            .await
+            .expect("error getting the nonce parameter");
+        self.current_nonce = nonce;
+
         self
     }
 
@@ -489,6 +501,8 @@ impl Web3Manager {
         let balances: HashMap<H160, U256> = HashMap::new();
         let accounts_map: HashMap<H160, String> = HashMap::new();
 
+        let current_nonce: U256 = U256::from_dec_str("0").unwrap();
+
         //let chain_id: Option<u64> = Option::Some(u64::try_from(web3http.eth().chain_id().await.unwrap()).unwrap());
         let chain_id: Option<u64> = Option::Some(u64::try_from(u64chain_id).unwrap());
 
@@ -498,6 +512,7 @@ impl Web3Manager {
             web3http,
             web3web_socket,
             accounts_map,
+            current_nonce,
             chain_id,
         }
     }
@@ -689,7 +704,7 @@ impl Web3Manager {
 
         // 3. build tx parameters
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(
-            self.last_nonce().await.unwrap(),
+            self.current_nonce,
             contract_instance.address(),
             U256::from_dec_str(value).unwrap(),
             estimated_tx_gas,
@@ -709,6 +724,10 @@ impl Web3Manager {
             .await;
 
         return tx_result;
+    }
+
+    fn update_nonce(&mut self) {
+        self.current_nonce = self.current_nonce + 1;
     }
 
     pub async fn sent_eth(&mut self, account: H160, to: H160, amount: &str) {

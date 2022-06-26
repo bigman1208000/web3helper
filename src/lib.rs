@@ -136,6 +136,7 @@ pub struct Web3Manager {
     pub web3web_socket: Web3<WebSocket>,
     // web3 websocket instance (for listen contracts events)
     accounts_map: HashMap<H160, String>,
+    current_nonce: U256,
     // hashmap (like mapping on solidity) for store public and private keys
     chain_id: Option<u64>,
 }
@@ -271,10 +272,7 @@ impl Web3Manager {
         println!("amount_out: {:?}", token_amount);
         println!("min_amount_less_slippage: {:?}", min_amount_less_slippage);
 
-        let nonce: U256 = self
-            .last_nonce()
-            .await
-            .expect("error getting the nonce parameter");
+        let nonce: U256 = self.current_nonce;
 
         let send_tx_result = self
             .sign_and_send_tx(
@@ -336,11 +334,7 @@ impl Web3Manager {
             self.first_loaded_account(),
             deadline + 600usize,
         );
-
-        let nonce: U256 = self
-            .last_nonce()
-            .await
-            .expect("error getting the nonce parameter");
+        let nonce: U256 = self.current_nonce;
 
         let send_tx_result = self
             .sign_and_send_tx(
@@ -422,10 +416,7 @@ impl Web3Manager {
             deadline + 600usize,
         );
 
-        let nonce: U256 = self
-            .last_nonce()
-            .await
-            .expect("error getting the nonce parameter");
+        let nonce: U256 = self.current_nonce;
 
         let send_tx_result = self
             .sign_and_send_tx(
@@ -497,6 +488,13 @@ impl Web3Manager {
             .insert(wallet, plain_private_key.to_string());
         self.accounts.push(wallet);
 
+        // get last nonce from loaded account
+        let nonce: U256 = self
+            .last_nonce()
+            .await
+            .expect("error getting the nonce parameter");
+        self.current_nonce = nonce;
+
         self
     }
 
@@ -516,7 +514,7 @@ impl Web3Manager {
         let balances: HashMap<H160, U256> = HashMap::new();
         let accounts_map: HashMap<H160, String> = HashMap::new();
 
-        //let current_nonce: U256 = U256::from_dec_str("0").unwrap();
+        let current_nonce: U256 = U256::from_dec_str("0").unwrap();
 
         //let chain_id: Option<u64> = Option::Some(u64::try_from(web3http.eth().chain_id().await.unwrap()).unwrap());
         let chain_id: Option<u64> = Option::Some(u64::try_from(u64chain_id).unwrap());
@@ -527,6 +525,7 @@ impl Web3Manager {
             web3http,
             web3web_socket,
             accounts_map,
+            current_nonce,
             chain_id,
         }
     }
@@ -671,10 +670,7 @@ impl Web3Manager {
         let contract_function = "approve";
         let contract_function_parameters = (spender_address, U256::from_dec_str(value).unwrap());
 
-        let nonce: U256 = self
-            .last_nonce()
-            .await
-            .expect("error getting the nonce parameter");
+        let nonce: U256 = self.current_nonce;
 
         let send_tx_result = self
             .clone()
@@ -744,7 +740,13 @@ impl Web3Manager {
             .send_raw_transaction(signed_transaction.raw_transaction)
             .await;
 
+        self.update_nonce();
+
         return tx_result;
+    }
+
+    fn update_nonce(&mut self) {
+        self.current_nonce = self.current_nonce + 1;
     }
 
     pub async fn sent_eth(&mut self, account: H160, to: H160, amount: &str) {
@@ -792,10 +794,7 @@ impl Web3Manager {
         let contract_function_parameters =
             (recipient_address, U256::from_dec_str(token_amount).unwrap());
 
-        let nonce: U256 = self
-            .last_nonce()
-            .await
-            .expect("error getting the nonce parameter");
+        let nonce: U256 = self.current_nonce;
 
         let send_tx_result = self
             .sign_and_send_tx(

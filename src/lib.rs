@@ -493,6 +493,7 @@ impl Web3Manager {
             .last_nonce()
             .await
             .expect("error getting the nonce parameter");
+            
         self.current_nonce = nonce;
 
         self

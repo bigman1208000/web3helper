@@ -142,8 +142,22 @@ pub struct Web3Manager {
 }
 
 impl Web3Manager {
+    //-------------------------------------------------------------------------
+    //                        getters
+    //-------------------------------------------------------------------------
+    pub fn get_current_nonce(&self) -> U256 {
+        self.current_nonce
+    }
+
+    //-------------------------------------------------------------------------
+    //                        setters
+    //-------------------------------------------------------------------------
+    pub fn set_current_nonce(&mut self, new_nonce: U256) {
+        self.current_nonce = new_nonce;
+    }
+
     pub async fn instance_contract(
-        &mut self,
+        &self,
         plain_contract_address: &str,
         abi_path: &[u8],
     ) -> Result<Contract<Http>, Box<dyn std::error::Error>> {
@@ -184,7 +198,7 @@ impl Web3Manager {
         keypairs
     }
 
-    pub fn wei_to_eth(&mut self, wei_val: U256) -> f64 {
+    pub fn wei_to_eth(&self, wei_val: U256) -> f64 {
         let res = wei_val.as_u128() as f64;
         res / 1_000_000_000_000_000_000.0
     }
@@ -202,7 +216,7 @@ impl Web3Manager {
         return a;
     }
 
-    pub async fn get_token_balance(&mut self, token_address: &str, account: H160) -> U256 {
+    pub async fn get_token_balance(&self, token_address: &str, account: H160) -> U256 {
         let token_abi = include_bytes!("../abi/TokenAbi.json");
         let token_instance: Contract<Http> = self
             .instance_contract(token_address, token_abi)
@@ -493,7 +507,7 @@ impl Web3Manager {
             .last_nonce()
             .await
             .expect("error getting the nonce parameter");
-            
+
         self.current_nonce = nonce;
 
         self
@@ -544,7 +558,7 @@ impl Web3Manager {
     }
 
     pub async fn query_contract<P, T>(
-        &mut self,
+        &self,
         contract_instance: &Contract<Http>,
         func: &str,
         params: P,
@@ -747,7 +761,7 @@ impl Web3Manager {
     }
 
     fn update_nonce(&mut self) {
-        self.current_nonce = self.current_nonce + 1;
+        self.set_current_nonce(self.get_current_nonce() + 1)
     }
 
     pub async fn sent_eth(&mut self, account: H160, to: H160, amount: &str) {
@@ -924,7 +938,7 @@ impl Web3Manager {
         return sub;
     }
 
-    pub async fn init_pair(&mut self, lp_address: &str) -> Contract<Http> {
+    pub async fn init_pair(&self, lp_address: &str) -> Contract<Http> {
         let lp_pair_abi = include_bytes!("../abi/PancakeLPTokenAbi.json");
         let lp_pair_instance_address = lp_address;
         let lp_pair_instance: Contract<Http> = self
@@ -955,7 +969,7 @@ impl Web3Manager {
         router_instance
     }
 
-    pub async fn token_has_liquidity(&mut self, lp_pair_factory_instance: Contract<Http>) -> bool {
+    pub async fn token_has_liquidity(&self, lp_pair_factory_instance: Contract<Http>) -> bool {
         let lp_pair_reserves: (Uint, Uint, Uint) = self
             .query_contract(&lp_pair_factory_instance, "getReserves", ())
             .await

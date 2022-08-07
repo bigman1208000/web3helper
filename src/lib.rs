@@ -981,6 +981,9 @@ impl Web3Manager {
         let factory_instance = self.init_router_factory().await;
 
         let weth = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
+        let busd = "0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7";
+        let mut initial_lp_address == "0x0000000000000000000000000000000000000000"
+        let mut lp_token_address;
 
         let lp_pair_address: H160 = self
             .query_contract(
@@ -993,7 +996,23 @@ impl Web3Manager {
             )
             .await
             .unwrap();
-        w3h::to_string(&lp_pair_address).replace("\"", "")
+
+        let lp_token_address = w3h::to_string(&lp_pair_address).replace("\"", "")
+        if(lp_token_address == initial_lp_address) {
+            let lp_pair_address: H160 = self
+            .query_contract(
+                &factory_instance,
+                "getPair",
+                (
+                    H160::from_str(weth).unwrap(),
+                    H160::from_str(token_address).unwrap(),
+                ),
+            )
+            .await
+            .unwrap();
+         lp_token_address = w3h::to_string(&lp_pair_address).replace("\"", "")
+        }
+        lp_token_address
     }
 
     pub async fn get_token_reserves(

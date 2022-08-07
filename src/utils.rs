@@ -403,14 +403,14 @@ fn print_welcome() {
 }
 
 pub async fn init_web3_connection() -> Web3Manager {
-    //let web3_http_url = "http://127.0.0.1:8545";
-    //let web3_websocket_url = "ws://127.0.0.1:8545/ws";
-    //let chain_id = 31337;
+    let web3_http_url = "http://127.0.0.1:8545";
+    let web3_websocket_url = "ws://127.0.0.1:8545/ws";
+    let chain_id = 31337;
 
-    let web3_http_url = "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/testnet";
-    let web3_websocket_url =
-        "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/testnet/ws";
-    let chain_id = 97;
+    //let web3_http_url = "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/testnet";
+    //let web3_websocket_url =
+    //    "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/testnet/ws";
+    //let chain_id = 97;
 
     let mut web3m: Web3Manager =
         Web3Manager::new(web3_http_url, web3_websocket_url, chain_id).await;

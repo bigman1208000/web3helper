@@ -45,7 +45,7 @@ async fn main() -> web3::Result<()> {
     .await;
 
     // 4. DO REAL BUY
-    let buy_price = do_real_buy(&mut web3m, account, token_address.as_str()).await;
+    let buy_price = do_real_buy(&mut web3m, account, router_address.as_str(), token_address.as_str(), invest_amount).await;
     clear_screen();
 
     let sell_tx_ok: bool = false;

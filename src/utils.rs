@@ -185,7 +185,7 @@ pub async fn check_trading_enable(
     let mut is_enabled: bool = false;
 
     let mut slippage = 1usize;
-    let max_slippage = 25usize;
+    let max_slippage = 99usize;
 
     while !is_enabled {
         println!("{}", "Checking fees percentages".yellow());
@@ -202,7 +202,7 @@ pub async fn check_trading_enable(
                 .await;
 
             if tx_result.is_ok() {
-                is_enabled = true;
+                //is_enabled = true;
                 println!("{}", "BUY OK".green());
                 let token_balance = web3m.get_token_balance(token_address, account).await;
                 println!("Token Balance {}", web3m.wei_to_eth(token_balance));
@@ -327,19 +327,23 @@ pub async fn do_real_sell(
     true
 }
 
-pub async fn do_real_buy(web3m: &mut Web3Manager, account: H160, token_address: &str) -> U256 {
+pub async fn do_real_buy(
+    web3m: &mut Web3Manager,
+    account: H160,
+    router_address: &str,
+    token_address: &str,
+    invest_amount: U256,
+) -> U256 {
     let mut is_enabled: bool = false;
     let mut buy_price = U256::from_str("0").unwrap();
     while !is_enabled {
-        let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
         buy_price = get_token_price(web3m, router_address, token_address).await;
         let tx_result = web3m
-            .clone()
             .swap_eth_for_exact_tokens(
                 account,
                 router_address,
                 token_address,
-                U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap(), // try buy 1GWei 1000000000 -> 0.000000001 BNB
+                invest_amount, // try buy 1GWei 1000000000 -> 0.000000001 BNB
                 1usize,
             )
             .await;

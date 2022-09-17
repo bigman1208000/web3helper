@@ -223,10 +223,21 @@ impl Web3Manager {
             .await
             .expect("error creating the router instance");
 
+        let token_decimals: U256 = self
+            .query_contract(&token_instance, "decimals", ())
+            .await
+            .unwrap();
+
         let token_balance: U256 = self
             .query_contract(&token_instance, "balanceOf", account)
             .await
             .unwrap();
+
+        //let a = token_balance * token_decimals;
+
+        //println!("a: {:?}", token_decimals);
+        println!("token_decimals: {:?}", token_decimals);
+        println!("token_balance: {:?}", token_balance);
 
         token_balance
     }
@@ -294,7 +305,7 @@ impl Web3Manager {
                 &router_instance,
                 contract_function,
                 &parameters2,
-                &amount_out_min[0].to_string(),
+                token_amount,
                 nonce.as_u64(),
             )
             .await;
@@ -356,7 +367,7 @@ impl Web3Manager {
                 &router_instance,
                 contract_function,
                 &parameters,
-                "0",
+                U256::from_dec_str("0").unwrap(),
                 nonce.as_u64(),
             )
             .await;
@@ -368,7 +379,7 @@ impl Web3Manager {
         account: H160,
         router_address: &str,
         token_address: &str,
-        token_amount: U256,
+        eth_amount: U256,
         slippage: usize,
     ) -> Result<H256, web3::Error> {
         let mut router_abi_path = "../abi/PancakeRouterAbi.json";
@@ -413,7 +424,7 @@ impl Web3Manager {
             addresses.push(Address::from_str(pair).unwrap());
         }
 
-        let parameter_out = (token_amount, addresses.clone());
+        let parameter_out = (eth_amount, addresses.clone());
         let amount_out_min: Vec<Uint> = self
             .query_contract(&router_instance, "getAmountsOut", parameter_out)
             .await
@@ -426,11 +437,16 @@ impl Web3Manager {
         let parameters = (
             min_amount_less_slippage,
             addresses,
-            self.first_loaded_account(),
+            account,
             deadline + 600usize,
         );
 
         let nonce: U256 = self.current_nonce;
+
+        println!("slippage {}", slippage);
+        println!("amount_out_min[0] {}", amount_out_min[0]);
+        println!("amount_out_min[1] {}", amount_out_min[1]);
+        println!("min_amount_less_slippage {}", min_amount_less_slippage);
 
         let send_tx_result = self
             .sign_and_send_tx(
@@ -438,7 +454,7 @@ impl Web3Manager {
                 &router_instance,
                 contract_function,
                 &parameters,
-                &amount_out_min[0].to_string(),
+                eth_amount,
                 nonce.as_u64(),
             )
             .await;
@@ -694,7 +710,7 @@ impl Web3Manager {
                 &token_instance,
                 &contract_function.to_string(),
                 &contract_function_parameters,
-                "0",
+                U256::from_dec_str("0").unwrap(),
                 nonce.as_u64(),
             )
             .await;
@@ -708,7 +724,7 @@ impl Web3Manager {
         contract_instance: &Contract<Http>,
         func: &str,
         params: &P,
-        value: &str,
+        value: U256,
         current_nonce: u64,
     ) -> Result<H256, web3::Error>
     where
@@ -722,18 +738,19 @@ impl Web3Manager {
             .estimate_gas(
                 func,
                 params.clone(),
-                self.accounts[0],
+                account,
                 Options {
-                    value: Some(U256::from_dec_str(value).unwrap()),
+                    value: Some(value),
                     ..Default::default()
                 },
             )
             .await;
 
-        //let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
-
+        // todo return err
+        let mut used_gas = U256::from_dec_str("0").unwrap();
         if gas_estimation_result.is_err() {
-
+        } else {
+            used_gas = gas_estimation_result.unwrap();
         }
 
         // 2. encode_tx_data
@@ -745,8 +762,8 @@ impl Web3Manager {
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(
             U256::from(current_nonce),
             contract_instance.address(),
-            U256::from_dec_str(value).unwrap(),
-            gas_estimation_result.unwrap(),
+            value,
+            used_gas,
             gas_price,
             tx_data,
         );
@@ -824,7 +841,7 @@ impl Web3Manager {
                 contract_instance,
                 contract_function,
                 &contract_function_parameters,
-                "0",
+                U256::from_dec_str("0").unwrap(),
                 nonce.as_u64(),
             )
             .await;

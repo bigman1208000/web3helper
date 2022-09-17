@@ -371,7 +371,7 @@ impl Web3Manager {
         token_amount: U256,
         slippage: usize,
     ) -> Result<H256, web3::Error> {
-        let mut router_abi_path = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
+        let mut router_abi_path = "../abi/PancakeRouterAbi.json";
         let mut contract_function: &str = "swapExactETHForTokens";
 
         let path_address: Vec<&str> = vec![
@@ -406,7 +406,7 @@ impl Web3Manager {
         let router_instance: Contract<Http> = self
             .instance_contract(router_address, router_abi)
             .await
-            .expect("error creating the router instance");
+            .unwrap();
 
         let mut addresses = Vec::new();
         for pair in path_address {
@@ -636,7 +636,7 @@ impl Web3Manager {
             .into()
     }
 
-    pub async fn estimate_tx_gas<P>(
+    pub async fn estimate_tx_gasV1<P>(
         &mut self,
         contract: &Contract<Http>,
         func: &str,
@@ -717,29 +717,36 @@ impl Web3Manager {
         // estimate gas for call this function with this parameters
         // increase 200ms execution time, we use high gas available
         // gas not used goes back to contract
-
-        let estimated_tx_gas: U256 = self
-            .estimate_tx_gas(&contract_instance.clone(), &func, params.clone(), value)
+        //let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
+        let gas_estimation_result = contract_instance
+            .estimate_gas(
+                func,
+                params.clone(),
+                self.accounts[0],
+                Options {
+                    value: Some(U256::from_dec_str(value).unwrap()),
+                    ..Default::default()
+                },
+            )
             .await;
 
         //let estimated_tx_gas: U256 = U256::from_dec_str("5000000").unwrap();
 
+        if gas_estimation_result.is_err() {
+
+        }
+
         // 2. encode_tx_data
         let tx_data: Bytes = self.encode_tx_data(contract_instance, func, params.clone());
 
-        let gas_price: U256 = self
-            .web3http
-            .eth()
-            .gas_price()
-            .await
-            .expect("error getting the gas price parameter");
+        let gas_price: U256 = self.web3http.eth().gas_price().await.unwrap();
 
         // 3. build tx parameters
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(
             U256::from(current_nonce),
             contract_instance.address(),
             U256::from_dec_str(value).unwrap(),
-            estimated_tx_gas,
+            gas_estimation_result.unwrap(),
             gas_price,
             tx_data,
         );
@@ -981,9 +988,9 @@ impl Web3Manager {
         let factory_instance = self.init_router_factory().await;
 
         let weth = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
-        let busd = "0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7";
-        let mut initial_lp_address == "0x0000000000000000000000000000000000000000"
-        let mut lp_token_address;
+        //let busd = "0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7";
+        let initial_lp_address = "0x0000000000000000000000000000000000000000";
+        //let mut lp_token_address;
 
         let lp_pair_address: H160 = self
             .query_contract(
@@ -997,20 +1004,20 @@ impl Web3Manager {
             .await
             .unwrap();
 
-        let lp_token_address = w3h::to_string(&lp_pair_address).replace("\"", "")
-        if(lp_token_address == initial_lp_address) {
+        let mut lp_token_address = w3h::to_string(&lp_pair_address).replace("\"", "");
+        if lp_token_address == initial_lp_address {
             let lp_pair_address: H160 = self
-            .query_contract(
-                &factory_instance,
-                "getPair",
-                (
-                    H160::from_str(weth).unwrap(),
-                    H160::from_str(token_address).unwrap(),
-                ),
-            )
-            .await
-            .unwrap();
-         lp_token_address = w3h::to_string(&lp_pair_address).replace("\"", "")
+                .query_contract(
+                    &factory_instance,
+                    "getPair",
+                    (
+                        H160::from_str(weth).unwrap(),
+                        H160::from_str(token_address).unwrap(),
+                    ),
+                )
+                .await
+                .unwrap();
+            lp_token_address = w3h::to_string(&lp_pair_address).replace("\"", "")
         }
         lp_token_address
     }

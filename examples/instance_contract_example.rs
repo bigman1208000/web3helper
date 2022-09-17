@@ -48,7 +48,9 @@ async fn main() -> web3::Result<()> {
     println!("busd_balance: {}", busd_balance);
 
     println!("listen....");
-    web3m.listen_contract_events("0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7").await;
+    web3m
+        .listen_contract_events("0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7")
+        .await;
     println!("end");
 
     Ok(())

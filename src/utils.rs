@@ -103,6 +103,7 @@ pub async fn get_token_price(
 pub async fn check_before_buy(
     web3m: &mut Web3Manager,
     account: H160,
+    router_address: &str,
     token_address: &str,
     token_lp_address: &str,
 ) {
@@ -110,17 +111,13 @@ pub async fn check_before_buy(
     check_has_liquidity(web3m, token_lp_address).await;
 
     // 2. CHECK TRADING ENABLE
-    check_trading_enable(web3m, account, token_address).await;
+    check_trading_enable(web3m, account, router_address, token_address).await;
 
     // 3. CHECK HONEYPOT
-    check_honeypot(web3m, account, token_address).await;
+    check_honeypot(web3m, account, router_address, token_address).await;
 }
 
-pub async fn check_trading_enable(
-    web3m: &mut Web3Manager,
-    account: H160,
-    token_address: &str,
-) -> bool {
+pub async fn check_fees(web3m: &mut Web3Manager, account: H160, token_address: &str) -> bool {
     let mut is_enabled: bool = false;
 
     let mut slippage = 1usize;
@@ -129,6 +126,70 @@ pub async fn check_trading_enable(
     while !is_enabled {
         let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
 
+        if slippage <= max_slippage {
+            let tx_result = web3m
+                .swap_eth_for_exact_tokens(
+                    account,
+                    router_address,
+                    token_address,
+                    U256::from_str("1000000000").unwrap(), // try buy 10 GWei 10000000000 -> 0.00000001 BNB
+                    slippage,
+                )
+                .await;
+
+            if tx_result.is_ok() {
+                is_enabled = true;
+                println!("{}", "BUY OK".green());
+                let token_balance = web3m.get_token_balance(token_address, account).await;
+                println!("Token Balance {}", web3m.wei_to_eth(token_balance));
+            } else {
+                println!("{}", tx_result.err().unwrap().to_string().red());
+                slippage += 1;
+
+                if slippage == max_slippage {
+                    println!("{}", "Max slipagge".red());
+                    exit(0);
+                }
+            }
+
+            let now = Utc::now();
+            let (is_pm, hour) = now.hour12();
+
+            println!(
+                "{}{:02}:{:02}:{:02}{}{}{}{}{} slippage {}",
+                "[".yellow(),
+                hour.to_string().cyan(),
+                now.minute().to_string().cyan(),
+                now.second().to_string().cyan(),
+                "]".yellow(),
+                "[".yellow(),
+                "TRADING ACTIVE".cyan(),
+                "]".yellow(),
+                is_enabled,
+                slippage
+            );
+
+            //let ten_millis = time::Duration::from_secs(1);
+            //thread::sleep(ten_millis);
+        }
+    }
+    is_enabled
+}
+
+pub async fn check_trading_enable(
+    web3m: &mut Web3Manager,
+    account: H160,
+    router_address: &str,
+    token_address: &str,
+) -> bool {
+    let mut is_enabled: bool = false;
+
+    let mut slippage = 1usize;
+    let max_slippage = 25usize;
+
+    while !is_enabled {
+        println!("{}", "Checking fees percentages".yellow());
+        println!("{}", router_address);
         if slippage <= max_slippage {
             let tx_result = web3m
                 .swap_eth_for_exact_tokens(
@@ -310,7 +371,12 @@ pub async fn do_real_buy(web3m: &mut Web3Manager, account: H160, token_address: 
     buy_price
 }
 
-pub async fn check_honeypot(web3m: &mut Web3Manager, account: H160, token_address: &str) -> bool {
+pub async fn check_honeypot(
+    web3m: &mut Web3Manager,
+    account: H160,
+    router_address: &str,
+    token_address: &str,
+) -> bool {
     let mut is_honey_pot: bool = true;
     let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
     do_approve(web3m.clone(), token_address, router_address, account).await;
@@ -402,43 +468,52 @@ fn print_welcome() {
     println!("{}", "Welcome".green());
 }
 
-pub async fn init_web3_connection() -> Web3Manager {
-    let web3_http_url = "http://127.0.0.1:8545";
-    let web3_websocket_url = "ws://127.0.0.1:8545/ws";
-    let chain_id = 31337;
+pub async fn init_web3_connection(account_puk: &str, account_prk: &str) -> Web3Manager {
+    //let web3_http_url = "http://127.0.0.1:8545";
+    //let web3_websocket_url = "ws://127.0.0.1:8545/ws";
+    //let chain_id = 31337;
 
-    //let web3_http_url = "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/testnet";
-    //let web3_websocket_url =
-    //    "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/testnet/ws";
-    //let chain_id = 97;
+    let web3_http_url = "https://bsc-testnet.nodereal.io/v1/d4224d2458594df5830eb45cdef8b45b";
+    let web3_websocket_url = "wss://bsc-testnet.nodereal.io/ws/v1/d4224d2458594df5830eb45cdef8b45b";
+    let chain_id = 97;
 
     let mut web3m: Web3Manager =
         Web3Manager::new(web3_http_url, web3_websocket_url, chain_id).await;
 
-    web3m
-        .load_account(
-            &env::var("ACCOUNT_ADDRESS").unwrap(),
-            &env::var("PRIVATE_TEST_KEY").unwrap(),
-        )
-        .await;
+    web3m.load_account(account_puk, account_prk).await;
     web3m
 }
 
-pub async fn get_env_variables() -> (String, U256, String, String) {
-    let token_address = env::var("TOKEN_ADDRESS").unwrap();
-    let value = U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap();
+pub async fn get_env_variables() -> (String, String, String, String, U256, f64, f64, f64) {
     let account_puk = env::var("ACCOUNT_ADDRESS").unwrap();
     let account_prk = env::var("PRIVATE_TEST_KEY").unwrap();
+    let router_address = env::var("ROUTER_ADDRESS").unwrap();
+    let token_address = env::var("TOKEN_ADDRESS").unwrap();
+    let invest_amount = U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap();
+    let max_slipage = env::var("MAX_SLIPPAGE").unwrap().parse::<f64>().unwrap();
+    let stop_loss = env::var("STOP_LOSS").unwrap().parse::<f64>().unwrap();
+    let take_profit = env::var("TAKE_PROFIT").unwrap().parse::<f64>().unwrap();
 
     println!("");
-    println!("token_address {}", token_address.yellow());
-
-    println!("value {}", value);
     println!("account_puk {}", account_puk);
     println!("account_prk {}", account_prk);
+    println!("router_address {}", router_address);
+    println!("token_address {}", token_address);
+    println!("max_slipage {}", max_slipage);
+    println!("stop_loss {}", stop_loss);
+    println!("take_profit {}", take_profit);
     println!("");
 
-    return (token_address, value, account_puk, account_prk);
+    return (
+        account_puk,
+        account_prk,
+        router_address,
+        token_address,
+        invest_amount,
+        max_slipage,
+        stop_loss,
+        take_profit,
+    );
 }
 
 pub fn calc_price_change_percent(old_price: f64, new_price: f64) -> f64 {

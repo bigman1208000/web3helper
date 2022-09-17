@@ -128,8 +128,6 @@ pub struct KeyPair {
 pub struct Web3Manager {
     // all the accounts
     pub accounts: Vec<H160>,
-    // balances of each accounts
-    pub balances: HashMap<H160, U256>,
     // public addresses
     pub web3http: Web3<Http>,
     // web3 https instance (for use call or write contract functions)
@@ -221,7 +219,7 @@ impl Web3Manager {
         let token_instance: Contract<Http> = self
             .instance_contract(token_address, token_abi)
             .await
-            .expect("error creating the router instance");
+            .unwrap();
 
         let token_decimals: U256 = self
             .query_contract(&token_instance, "decimals", ())
@@ -240,10 +238,6 @@ impl Web3Manager {
         println!("token_balance: {:?}", token_balance);
 
         token_balance
-    }
-
-    pub fn get_account_balance(&mut self, account: H160) -> U256 {
-        self.balances[&account]
     }
 
     pub fn generate_deadline(&self) -> Result<U256, SystemTimeError> {
@@ -297,7 +291,7 @@ impl Web3Manager {
         println!("amount_out: {:?}", token_amount);
         println!("min_amount_less_slippage: {:?}", min_amount_less_slippage);
 
-        let nonce: U256 = self.current_nonce;
+        let nonce: U256 = self.get_current_nonce();
 
         let send_tx_result = self
             .sign_and_send_tx(
@@ -359,7 +353,7 @@ impl Web3Manager {
             self.first_loaded_account(),
             deadline + 600usize,
         );
-        let nonce: U256 = self.current_nonce;
+        let nonce: U256 = self.get_current_nonce();
 
         let send_tx_result = self
             .sign_and_send_tx(
@@ -441,7 +435,7 @@ impl Web3Manager {
             deadline + 600usize,
         );
 
-        let nonce: U256 = self.current_nonce;
+        let nonce: U256 = self.get_current_nonce();
 
         println!("slippage {}", slippage);
         println!("amount_out_min[0] {}", amount_out_min[0]);
@@ -487,17 +481,16 @@ impl Web3Manager {
 
     // Counts the number of exececuted transactions by the loaded wallet to set the 'nonce' param for current transacction
     // Cuenta el número de transacciones se han ejecutado con la wallet cargada para establecer el parámetro 'nonce' en la transacción actual
-    pub async fn last_nonce(&self) -> Result<U256, web3::Error> {
-        let block_number: Option<BlockNumber> = Option::Some(BlockNumber::Latest);
+    pub async fn last_nonce(&self, account: H160) -> Result<U256, web3::Error> {
+        let block_number: Option<BlockNumber> = Option::Some(BlockNumber::Pending);
 
         self.web3http
             .eth()
-            .transaction_count(self.first_loaded_account(), block_number)
+            .transaction_count(account, block_number)
             .await
 
         /*
-
-               self.web3http
+        self.web3http
         .eth()
         .transaction_count(self.first_loaded_account(), None)
         .await
@@ -519,10 +512,7 @@ impl Web3Manager {
         self.accounts.push(wallet);
 
         // get last nonce from loaded account
-        let nonce: U256 = self
-            .last_nonce()
-            .await
-            .expect("error getting the nonce parameter");
+        let nonce: U256 = self.last_nonce(wallet).await.unwrap();
 
         self.current_nonce = nonce;
 
@@ -542,9 +532,7 @@ impl Web3Manager {
 
         // create empty vector for store accounts
         let accounts: Vec<Address> = vec![];
-        let balances: HashMap<H160, U256> = HashMap::new();
         let accounts_map: HashMap<H160, String> = HashMap::new();
-
         let current_nonce: U256 = U256::from_dec_str("0").unwrap();
 
         //let chain_id: Option<u64> = Option::Some(u64::try_from(web3http.eth().chain_id().await.unwrap()).unwrap());
@@ -552,7 +540,6 @@ impl Web3Manager {
 
         Web3Manager {
             accounts,
-            balances,
             web3http,
             web3web_socket,
             accounts_map,
@@ -587,17 +574,6 @@ impl Web3Manager {
         contract_instance
             .query(func, params, None, Default::default(), None)
             .await
-    }
-
-    // To execute a function in a contract it has to be sent as a raw transaction which is the basic transaction format
-    // Para ejecutar cualquier transacción en un contrato ha de ser mandada como una transacción de tipo raw,
-    // que es el formato básico de las transaaciones
-    pub async fn send_raw_transaction(&mut self, raw_transaction: Bytes) -> H256 {
-        self.web3http
-            .eth()
-            .send_raw_transaction(raw_transaction)
-            .await
-            .unwrap()
     }
 
     // The transactions must be signed with the private key of the wallet that executes it
@@ -695,7 +671,7 @@ impl Web3Manager {
         let token_instance: Contract<Http> = self
             .instance_contract(token_address, token_abi)
             .await
-            .expect("error creating the router instance");
+            .unwrap();
 
         let spender_address: Address = Address::from_str(spender).unwrap();
         let contract_function = "approve";
@@ -862,7 +838,7 @@ impl Web3Manager {
         let proxy_instance: Contract<Http> = self
             .instance_contract(&network.get_address(pair_address).unwrap(), proxy_abi)
             .await
-            .expect("error creating the proxy instance");
+            .unwrap();
 
         let res: (Uint, Int, Uint, Uint, Uint) = self
             .query_contract(&proxy_instance, "latestRoundData", ())

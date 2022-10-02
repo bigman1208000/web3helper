@@ -6,10 +6,8 @@ use std::env;
 use std::process::exit;
 use std::str::FromStr;
 use std::thread;
-use web3::contract::Contract;
 use web3::ethabi::Uint;
 use web3::helpers as w3h;
-use web3::transports::Http;
 use web3::types::{Address, H160, H256, U256};
 use web3_rust_wrapper::Web3Manager;
 
@@ -106,10 +104,14 @@ pub async fn check_before_buy(
     account: H160,
     router_address: &str,
     token_address: &str,
-    token_lp_address: &str,
 ) {
+    let factory_address = "0xB7926C0430Afb07AA7DEfDE6DA862aE0Bde767bc";
+    let token_lp_address = web3m
+        .find_lp_pair(factory_address, token_address)
+        .await;
+
     // 1. CHECK IF TOKEN HAS LIQUIDITY
-    check_has_liquidity(web3m, token_lp_address).await;
+    check_has_liquidity(web3m, token_lp_address.as_str()).await;
 
     // 2. CHECK TRADING ENABLE
     check_trading_enable(web3m, account, router_address, token_address).await;
@@ -220,16 +222,6 @@ pub async fn do_real_sell(
         if ath_price_change_percent < -10.0 {
             price_hit_take_profit_ath = true
         }
-
-        /*
-                let ath_price_change_percent =calc_price_change_percent(wei_to_eth(last_token_price), wei_to_eth(token_price));
-
-                let ath_price_change_percent =
-                calc_price_change_percent(wei_to_eth(last_token_price), wei_to_eth(token_price));
-                if ath_price_change_percent > 10.0 {
-                    price_hit_take_profit_ath = true
-                }
-        */
 
         // CHECK IF TOKEN PERCENT HITS TAKE PROFIT OR STOP LOSS
         let (price_hit_take_profit, price_hit_stop_loss) = hit_take_profit_or_stop_loss(
@@ -448,18 +440,19 @@ pub async fn init_web3_connection(account_puk: &str, account_prk: &str) -> Web3M
     web3m
 }
 
-pub async fn get_env_variables() -> (String, String, String, String, U256, f64, f64, f64) {
+pub async fn get_env_variables() -> (String, String, String, String, f64, f64, f64, f64) {
     let account_puk = env::var("ACCOUNT_ADDRESS").unwrap();
     let account_prk = env::var("PRIVATE_TEST_KEY").unwrap();
     let router_address = env::var("ROUTER_ADDRESS").unwrap();
     let token_address = env::var("TOKEN_ADDRESS").unwrap();
     //let invest_amount = U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap();
-    let invest_amount = U256::from_str("1000000000000").unwrap();
+    //let invest_amount = U256::from_str("1000000000000").unwrap();
+    let invest_amount = env::var("INVEST_AMOUNT").unwrap().parse::<f64>().unwrap();
     let max_slipage = env::var("MAX_SLIPPAGE").unwrap().parse::<f64>().unwrap();
-    let mut stop_loss = env::var("STOP_LOSS").unwrap().parse::<f64>().unwrap();
-    let take_profit = env::var("TAKE_PROFIT").unwrap().parse::<f64>().unwrap();
+    let mut stop_loss_percent = env::var("STOP_LOSS").unwrap().parse::<f64>().unwrap();
+    let take_profit_percent = env::var("TAKE_PROFIT").unwrap().parse::<f64>().unwrap();
 
-    stop_loss = -stop_loss;
+    stop_loss_percent = -stop_loss_percent;
 
     println!("");
     println!("account_puk {}", account_puk);
@@ -468,8 +461,8 @@ pub async fn get_env_variables() -> (String, String, String, String, U256, f64, 
     println!("token_address {}", token_address);
     println!("invest_amount {}", invest_amount);
     println!("max_slipage {}", max_slipage);
-    println!("stop_loss {}", stop_loss);
-    println!("take_profit {}", take_profit);
+    println!("stop_loss_percent {}", stop_loss_percent);
+    println!("take_profit_percent {}", take_profit_percent);
     println!("");
 
     return (
@@ -479,8 +472,8 @@ pub async fn get_env_variables() -> (String, String, String, String, U256, f64, 
         token_address,
         invest_amount,
         max_slipage,
-        stop_loss,
-        take_profit,
+        stop_loss_percent,
+        take_profit_percent,
     );
 }
 

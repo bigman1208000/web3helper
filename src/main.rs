@@ -15,22 +15,15 @@ async fn main() -> web3::Result<()> {
         invest_amount,
         max_slipage,
         stop_loss,
-        take_profit,
+        take_profit_percent,
     ) = get_env_variables().await;
-
-    let take_profit_pencent = 99.0;
 
     // INITIALIZE VALUES
     let mut web3m: Web3Manager =
         init_web3_connection(account_puk.as_str(), account_prk.as_str()).await;
     let account: H160 = web3m.first_loaded_account();
-    let factory_address = "0xB7926C0430Afb07AA7DEfDE6DA862aE0Bde767bc";
-    let token_lp_address = web3m
-        .find_lp_pair(factory_address, token_address.as_str())
-        .await;
 
-    println!("token_address {}", token_address);
-    println!("token_lp_address {}", token_lp_address);
+    println!("inves amount: {}", eth_to_wei(invest_amount));
 
     // 1. CHECK IF TOKEN HAS LIQUIDITY
     // 2. CHECK TRADING ENABLE
@@ -40,7 +33,6 @@ async fn main() -> web3::Result<()> {
         account,
         router_address.as_str(),
         token_address.as_str(),
-        token_lp_address.as_str(),
     )
     .await;
     println!("invest_amount {}", invest_amount);
@@ -50,7 +42,7 @@ async fn main() -> web3::Result<()> {
         account,
         router_address.as_str(),
         token_address.as_str(),
-        invest_amount,
+        eth_to_wei(invest_amount),
     )
     .await;
     clear_screen();
@@ -61,7 +53,7 @@ async fn main() -> web3::Result<()> {
         account,
         token_address.as_str(),
         router_address.as_str(),
-        take_profit_pencent,
+        take_profit_percent,
         stop_loss,
         buy_price,
     )

@@ -389,6 +389,9 @@ impl Web3Manager {
 
                 router_abi_path = "../abi/PancakeRouterAbi.json";
                 contract_function = "swapExactETHForTokens";
+
+                path_address.push(wbnb_address_testnet);
+                path_address.push(token_address);
             },
         }
 

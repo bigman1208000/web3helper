@@ -18,7 +18,7 @@ async fn main() -> web3::Result<()> {
         take_profit,
     ) = get_env_variables().await;
 
-    let take_profit_pencent = 90.0;
+    let take_profit_pencent = 99.0;
 
     // INITIALIZE VALUES
     let mut web3m: Web3Manager =
@@ -54,29 +54,6 @@ async fn main() -> web3::Result<()> {
     )
     .await;
     clear_screen();
-
-    let sell_tx_ok: bool = false;
-
-    while !sell_tx_ok {
-        let token_price =
-            get_token_price(&mut web3m, router_address.as_str(), token_address.as_str()).await;
-        println!("token_price {}", token_price);
-        //let token_eth_price = wei_to_eth(token_price);
-
-        /*
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
-        price_history.push((token_eth_price as f32, timestamp as f32));
-
-        Chart::default()
-            .lineplot(&Shape::Lines(&price_history))
-            .display();
-        clear_screen();
-        */
-    }
 
     // 5. LOOP UNTIL TAKE PROFIT OR STOP LOSS
     do_real_sell(

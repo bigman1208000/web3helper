@@ -193,12 +193,12 @@ pub async fn do_real_sell(
 ) -> bool {
     let mut sell_tx_ok: bool = false;
 
-    let token_balance = web3m.get_token_balance(token_address, account).await;
-    println!("Token Balance {}", wei_to_eth(token_balance));
-    let (mut last_token_price, price_change_percent) =
+    //let token_balance = web3m.get_token_balance(token_address, account).await;
+    let (token_price, price_change_percent) =
         get_token_price_info(web3m, router_address, token_address, buy_price).await;
+    let mut last_token_price = token_price;
     let mut price_hit_take_profit_ath = false;
-
+    let mut token_ath_price = token_price;
     while !sell_tx_ok {
         clear_screen();
 
@@ -207,15 +207,29 @@ pub async fn do_real_sell(
             get_token_price_info(web3m, router_address, token_address, buy_price).await;
 
         let ath_price_change_percent =
-            calc_price_change_percent(wei_to_eth(last_token_price), wei_to_eth(token_price));
+            calc_price_change_percent(wei_to_eth(token_ath_price), wei_to_eth(token_price));
 
         if token_price > last_token_price {
             last_token_price = token_price;
         }
 
-        if ath_price_change_percent > 10.0 {
+        if token_price > token_ath_price {
+            token_ath_price = token_price;
+        }
+
+        if ath_price_change_percent < -10.0 {
             price_hit_take_profit_ath = true
         }
+
+        /*
+                let ath_price_change_percent =calc_price_change_percent(wei_to_eth(last_token_price), wei_to_eth(token_price));
+
+                let ath_price_change_percent =
+                calc_price_change_percent(wei_to_eth(last_token_price), wei_to_eth(token_price));
+                if ath_price_change_percent > 10.0 {
+                    price_hit_take_profit_ath = true
+                }
+        */
 
         // CHECK IF TOKEN PERCENT HITS TAKE PROFIT OR STOP LOSS
         let (price_hit_take_profit, price_hit_stop_loss) = hit_take_profit_or_stop_loss(
@@ -230,31 +244,31 @@ pub async fn do_real_sell(
         let (is_pm, hour) = now.hour12();
         println!("");
         println!(
-            "[{:02}:{:02}:{:02}] - Price: {} BNB | Change: {}",
+            "[{:02}:{:02}:{:02}] - Price: {} BNB | ATH: {} BNB | Change: {} | ATH Change: {}",
             hour,
             now.minute(),
             now.second(),
             wei_to_eth(token_price),
-            price_change_percent
+            wei_to_eth(token_ath_price),
+            price_change_percent,
+            ath_price_change_percent
         );
 
         // STOP ATH
         if price_hit_take_profit_ath {
+            println!("{}", "TAKE PROFIT ATH".green());
+            sell_all(web3m, account, router_address, token_address).await;
+            println!("take_profit_ath_price: {:?}", token_price);
+            sell_tx_ok = true;
+        }
+
+        // TAKE PROFIT LOSS
+        if price_hit_take_profit {
             println!("{}", "TAKE PROFIT".green());
             sell_all(web3m, account, router_address, token_address).await;
             println!("take_profit_price: {:?}", token_price);
             sell_tx_ok = true;
         }
-
-        /*
-        // TAKE PROFIT LOSS
-        if price_hit_take_profit {
-            println!("{}", "TAKE PROFIT".green());
-            sell_all(web3m, account, token_address).await;
-            println!("take_profit_price: {:?}", token_price);
-            sell_tx_ok = true;
-        }
-        */
 
         // STOP LOSS
         if price_hit_stop_loss {
@@ -277,6 +291,7 @@ pub async fn do_real_buy(
     let mut is_enabled: bool = false;
     let mut buy_price = U256::from_str("0").unwrap();
     let mut slippage = 1usize;
+    println!("do_real_buy");
     while !is_enabled {
         buy_price = get_token_price(web3m, router_address, token_address).await;
 
@@ -438,11 +453,13 @@ pub async fn get_env_variables() -> (String, String, String, String, U256, f64, 
     let account_prk = env::var("PRIVATE_TEST_KEY").unwrap();
     let router_address = env::var("ROUTER_ADDRESS").unwrap();
     let token_address = env::var("TOKEN_ADDRESS").unwrap();
-    let invest_amount = U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap();
-    //let invest_amount = U256::from_str("1000000000000").unwrap();
+    //let invest_amount = U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap();
+    let invest_amount = U256::from_str("1000000000000").unwrap();
     let max_slipage = env::var("MAX_SLIPPAGE").unwrap().parse::<f64>().unwrap();
-    let stop_loss = env::var("STOP_LOSS").unwrap().parse::<f64>().unwrap();
+    let mut stop_loss = env::var("STOP_LOSS").unwrap().parse::<f64>().unwrap();
     let take_profit = env::var("TAKE_PROFIT").unwrap().parse::<f64>().unwrap();
+
+    stop_loss = -stop_loss;
 
     println!("");
     println!("account_puk {}", account_puk);

@@ -418,6 +418,7 @@ impl Web3Manager {
         let nonce: U256 = self.get_current_nonce();
 
         println!("slippage {}", slippage);
+        println!("eth_amount {}", eth_amount);
         println!("amount_out_min[0] {}", amount_out_min[0]);
         println!("amount_out_min[1] {}", amount_out_min[1]);
         println!("min_amount_less_slippage {}", min_amount_less_slippage);
@@ -660,7 +661,6 @@ impl Web3Manager {
         let nonce: U256 = self.current_nonce;
 
         let send_tx_result = self
-            .clone()
             .sign_and_send_tx(
                 account,
                 &token_instance,
@@ -734,6 +734,8 @@ impl Web3Manager {
             .eth()
             .send_raw_transaction(signed_transaction.raw_transaction)
             .await;
+
+        println!("current_nonce: {:?}", current_nonce);
 
         self.update_nonce();
 
@@ -1007,5 +1009,3 @@ impl Web3Manager {
         lp_pair_reserves
     }
 }
-
-

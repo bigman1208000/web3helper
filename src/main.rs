@@ -18,9 +18,7 @@ async fn main() -> web3::Result<()> {
         take_profit,
     ) = get_env_variables().await;
 
-    let mut slippage = 1usize;
     let take_profit_pencent = 90.0;
-    let mut is_trading_active: bool = false;
 
     // INITIALIZE VALUES
     let mut web3m: Web3Manager =
@@ -43,7 +41,7 @@ async fn main() -> web3::Result<()> {
         token_lp_address.as_str(),
     )
     .await;
-
+    println!("invest_amount {}", invest_amount);
     // 4. DO REAL BUY
     let buy_price = do_real_buy(
         &mut web3m,
@@ -60,7 +58,8 @@ async fn main() -> web3::Result<()> {
     while !sell_tx_ok {
         let token_price =
             get_token_price(&mut web3m, router_address.as_str(), token_address.as_str()).await;
-        let token_eth_price = wei_to_eth(token_price);
+        println!("token_price {}", token_price);
+        //let token_eth_price = wei_to_eth(token_price);
 
         /*
         let timestamp = SystemTime::now()

@@ -203,7 +203,7 @@ pub async fn check_trading_enable(
                 .await;
 
             if tx_result.is_ok() {
-                //is_enabled = true;
+                is_enabled = true;
                 println!("{}", "BUY OK".green());
                 let token_balance = web3m.get_token_balance(token_address, account).await;
                 println!("Token Balance {}", wei_to_eth(token_balance));
@@ -335,15 +335,17 @@ pub async fn do_real_buy(
 ) -> U256 {
     let mut is_enabled: bool = false;
     let mut buy_price = U256::from_str("0").unwrap();
+    let mut slippage = 1usize;
     while !is_enabled {
         buy_price = get_token_price(web3m, router_address, token_address).await;
+ 
         let tx_result = web3m
             .swap_eth_for_exact_tokens(
                 account,
                 router_address,
                 token_address,
                 invest_amount, // try buy 1GWei 1000000000 -> 0.000000001 BNB
-                1usize,
+                slippage,
             )
             .await;
 
@@ -370,6 +372,7 @@ pub async fn do_real_buy(
             "]".yellow(),
             is_enabled,
         );
+        slippage += 1;
     }
     buy_price
 }
@@ -381,8 +384,7 @@ pub async fn check_honeypot(
     token_address: &str,
 ) -> bool {
     let mut is_honey_pot: bool = true;
-    let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
-    do_approve(web3m.clone(), token_address, router_address, account).await;
+    do_approve(web3m, token_address, router_address, account).await;
 
     while is_honey_pot {
         let token_balance = web3m.get_token_balance(token_address, account).await;
@@ -394,7 +396,6 @@ pub async fn check_honeypot(
         ];
 
         let tx_result = web3m
-            .clone()
             .swap_exact_tokens_for_tokens_supporting_fee_on_transfer_tokens(
                 account,
                 router_address,
@@ -436,7 +437,7 @@ pub async fn check_honeypot(
 pub async fn sell_all(web3m: &mut Web3Manager, account: H160, token_address: &str) {
     let mut sell_ok: bool = false;
     let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
-    do_approve(web3m.clone(), token_address, router_address, account).await;
+    do_approve(web3m, token_address, router_address, account).await;
 
     while !sell_ok {
         let token_balance = web3m.get_token_balance(token_address, account).await;
@@ -492,7 +493,8 @@ pub async fn get_env_variables() -> (String, String, String, String, U256, f64, 
     let account_prk = env::var("PRIVATE_TEST_KEY").unwrap();
     let router_address = env::var("ROUTER_ADDRESS").unwrap();
     let token_address = env::var("TOKEN_ADDRESS").unwrap();
-    let invest_amount = U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap();
+    //let invest_amount = U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap();
+    let invest_amount = U256::from_str("1000000000000").unwrap();
     let max_slipage = env::var("MAX_SLIPPAGE").unwrap().parse::<f64>().unwrap();
     let stop_loss = env::var("STOP_LOSS").unwrap().parse::<f64>().unwrap();
     let take_profit = env::var("TAKE_PROFIT").unwrap().parse::<f64>().unwrap();
@@ -502,6 +504,7 @@ pub async fn get_env_variables() -> (String, String, String, String, U256, f64, 
     println!("account_prk {}", account_prk);
     println!("router_address {}", router_address);
     println!("token_address {}", token_address);
+    println!("invest_amount {}", invest_amount);
     println!("max_slipage {}", max_slipage);
     println!("stop_loss {}", stop_loss);
     println!("take_profit {}", take_profit);
@@ -524,13 +527,12 @@ pub fn calc_price_change_percent(old_price: f64, new_price: f64) -> f64 {
 }
 
 pub async fn do_approve(
-    web3m: Web3Manager,
+    web3m: &mut Web3Manager,
     token_address: &str,
     router_address: &str,
     account: H160,
 ) {
     let approve_tx = web3m
-        .clone()
         .approve_erc20_token(
             account,
             token_address,

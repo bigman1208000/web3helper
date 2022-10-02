@@ -118,65 +118,6 @@ pub async fn check_before_buy(
     check_honeypot(web3m, account, router_address, token_address).await;
 }
 
-pub async fn check_fees(web3m: &mut Web3Manager, account: H160, token_address: &str) -> bool {
-    let mut is_enabled: bool = false;
-
-    let mut slippage = 1usize;
-    let max_slippage = 25usize;
-
-    while !is_enabled {
-        let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
-
-        if slippage <= max_slippage {
-            let tx_result = web3m
-                .swap_eth_for_exact_tokens(
-                    account,
-                    router_address,
-                    token_address,
-                    U256::from_str("1000000000").unwrap(), // try buy 10 GWei 10000000000 -> 0.00000001 BNB
-                    slippage,
-                )
-                .await;
-
-            if tx_result.is_ok() {
-                is_enabled = true;
-                println!("{}", "BUY OK".green());
-                let token_balance = web3m.get_token_balance(token_address, account).await;
-                println!("Token Balance {}", wei_to_eth(token_balance));
-            } else {
-                println!("{}", tx_result.err().unwrap().to_string().red());
-                slippage += 1;
-
-                if slippage == max_slippage {
-                    println!("{}", "Max slipagge".red());
-                    exit(0);
-                }
-            }
-
-            let now = Utc::now();
-            let (is_pm, hour) = now.hour12();
-
-            println!(
-                "{}{:02}:{:02}:{:02}{}{}{}{}{} slippage {}",
-                "[".yellow(),
-                hour.to_string().cyan(),
-                now.minute().to_string().cyan(),
-                now.second().to_string().cyan(),
-                "]".yellow(),
-                "[".yellow(),
-                "TRADING ACTIVE".cyan(),
-                "]".yellow(),
-                is_enabled,
-                slippage
-            );
-
-            //let ten_millis = time::Duration::from_secs(1);
-            //thread::sleep(ten_millis);
-        }
-    }
-    is_enabled
-}
-
 pub async fn check_trading_enable(
     web3m: &mut Web3Manager,
     account: H160,
@@ -300,7 +241,7 @@ pub async fn do_real_sell(
         // STOP ATH
         if price_hit_take_profit_ath {
             println!("{}", "TAKE PROFIT".green());
-            sell_all(web3m, account, token_address).await;
+            sell_all(web3m, account, router_address, token_address).await;
             println!("take_profit_price: {:?}", token_price);
             sell_tx_ok = true;
         }
@@ -318,7 +259,7 @@ pub async fn do_real_sell(
         // STOP LOSS
         if price_hit_stop_loss {
             println!("{}", "STOP LOSS".red());
-            sell_all(web3m, account, token_address).await;
+            sell_all(web3m, account, router_address, token_address).await;
             println!("sell_stop_loss_price: {:?}", token_price);
             sell_tx_ok = true;
         }
@@ -338,7 +279,7 @@ pub async fn do_real_buy(
     let mut slippage = 1usize;
     while !is_enabled {
         buy_price = get_token_price(web3m, router_address, token_address).await;
- 
+
         let tx_result = web3m
             .swap_eth_for_exact_tokens(
                 account,
@@ -434,9 +375,13 @@ pub async fn check_honeypot(
     is_honey_pot
 }
 
-pub async fn sell_all(web3m: &mut Web3Manager, account: H160, token_address: &str) {
+pub async fn sell_all(
+    web3m: &mut Web3Manager,
+    account: H160,
+    router_address: &str,
+    token_address: &str,
+) {
     let mut sell_ok: bool = false;
-    let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
     do_approve(web3m, token_address, router_address, account).await;
 
     while !sell_ok {
@@ -493,8 +438,8 @@ pub async fn get_env_variables() -> (String, String, String, String, U256, f64, 
     let account_prk = env::var("PRIVATE_TEST_KEY").unwrap();
     let router_address = env::var("ROUTER_ADDRESS").unwrap();
     let token_address = env::var("TOKEN_ADDRESS").unwrap();
-    //let invest_amount = U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap();
-    let invest_amount = U256::from_str("1000000000000").unwrap();
+    let invest_amount = U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap();
+    //let invest_amount = U256::from_str("1000000000000").unwrap();
     let max_slipage = env::var("MAX_SLIPPAGE").unwrap().parse::<f64>().unwrap();
     let stop_loss = env::var("STOP_LOSS").unwrap().parse::<f64>().unwrap();
     let take_profit = env::var("TAKE_PROFIT").unwrap().parse::<f64>().unwrap();

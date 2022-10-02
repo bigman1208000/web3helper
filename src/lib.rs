@@ -359,27 +359,31 @@ impl Web3Manager {
     ) -> Result<H256, web3::Error> {
         let mut router_abi_path = "../abi/PancakeRouterAbi.json";
         let mut contract_function: &str = "swapExactETHForTokens";
+        let mut wbnb_address = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
+        let mut wbnb_address_testnet = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
 
-        let path_address: Vec<&str> = vec![
-            "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd", // BNB
-            token_address,
-        ];
+        // 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
+
+        let mut path_address: Vec<&str> = vec![];
 
         switch! { router_address;
             "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3" => {
 
                 router_abi_path = "../abi/PancakeRouterAbi.json";
                 contract_function = "swapExactETHForTokens";
+
+                path_address.push(wbnb_address_testnet);
+                path_address.push(token_address);
+
             },
-                "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3" => {
+                "0x10ed43c718714eb63d5aa57b78b54704e256024e" => {
 
                 router_abi_path = "../abi/PancakeRouterAbi.json";
                 contract_function = "swapExactETHForTokens";
-            },
-                "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3" => {
 
-                router_abi_path = "../abi/PancakeRouterAbi.json";
-                contract_function = "swapExactETHForTokens";
+                path_address.push(wbnb_address);
+                path_address.push(token_address);
+
             },
             _ => {
 
@@ -930,9 +934,8 @@ impl Web3Manager {
         lp_pair_instance
     }
 
-    pub async fn init_router_factory(&mut self) -> Contract<Http> {
+    pub async fn init_router_factory(&mut self, factory_address: &str) -> Contract<Http> {
         let factory_abi = include_bytes!("../abi/PancakeFactoryAbi.json");
-        let factory_address = "0xB7926C0430Afb07AA7DEfDE6DA862aE0Bde767bc";
         let factory_instance: Contract<Http> = self
             .instance_contract(factory_address, factory_abi)
             .await
@@ -940,10 +943,10 @@ impl Web3Manager {
         factory_instance
     }
 
-    pub async fn init_router(&mut self) -> Contract<Http> {
+    pub async fn init_router(&mut self, router_address: &str) -> Contract<Http> {
         //let abi: Abi = load_abi_from_json("factoryabi.json");
         let router_abi = include_bytes!("../abi/PancakeRouterAbi.json");
-        let router_address = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
+
         let router_instance: Contract<Http> = self
             .instance_contract(router_address, router_abi)
             .await
@@ -959,8 +962,8 @@ impl Web3Manager {
         lp_pair_reserves.0 > U256::from(0) && lp_pair_reserves.1 > U256::from(0)
     }
 
-    pub async fn find_lp_pair(&mut self, token_address: &str) -> String {
-        let factory_instance = self.init_router_factory().await;
+    pub async fn find_lp_pair(&mut self, factory_address: &str, token_address: &str) -> String {
+        let factory_instance = self.init_router_factory(factory_address).await;
 
         let weth = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
         //let busd = "0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7";

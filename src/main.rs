@@ -24,8 +24,10 @@ async fn main() -> web3::Result<()> {
     let mut web3m: Web3Manager =
         init_web3_connection(account_puk.as_str(), account_prk.as_str()).await;
     let account: H160 = web3m.first_loaded_account();
-
-    let token_lp_address = web3m.find_lp_pair(token_address.as_str()).await;
+    let factory_address = "0xB7926C0430Afb07AA7DEfDE6DA862aE0Bde767bc";
+    let token_lp_address = web3m
+        .find_lp_pair(factory_address, token_address.as_str())
+        .await;
 
     println!("token_address {}", token_address);
     println!("token_lp_address {}", token_lp_address);

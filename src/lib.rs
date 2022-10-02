@@ -20,7 +20,7 @@ use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::convert::{From, TryFrom};
 use std::str::FromStr;
-use std::time::{SystemTime, SystemTimeError};
+use std::time::SystemTime;
 use web3::api::SubscriptionStream;
 use web3::contract::tokens::{Detokenize, Tokenize};
 use web3::contract::{Contract, Options};
@@ -196,24 +196,6 @@ impl Web3Manager {
         keypairs
     }
 
-    pub fn wei_to_eth(&self, wei_val: U256) -> f64 {
-        let res = wei_val.as_u128() as f64;
-        res / 1_000_000_000_000_000_000.0
-    }
-
-    pub fn eth_to_wei(&mut self, eth_val: f64) -> U256 {
-        let result = eth_val * 1_000_000_000_000_000_000.0;
-        let result = result as u128;
-        U256::from(result)
-    }
-
-    fn wei_to_eth2(val: &str) -> U256 {
-        let v: f64 = val.parse().unwrap();
-        let a: U256 = U256::from_dec_str(v.clone().to_string().as_str()).unwrap();
-        //et k = wei_to_eth(a);
-        return a;
-    }
-
     pub async fn get_token_balance(&self, token_address: &str, account: H160) -> U256 {
         let token_abi = include_bytes!("../abi/TokenAbi.json");
         let token_instance: Contract<Http> = self
@@ -240,12 +222,13 @@ impl Web3Manager {
         token_balance
     }
 
-    pub fn generate_deadline(&self) -> Result<U256, SystemTimeError> {
-        Ok(U256::from(
+    pub fn generate_deadline(&self) -> U256 {
+        U256::from(
             SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)?
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
                 .as_secs(),
-        ))
+        ) + 1000usize
     }
 
     // TODO(elsuizo:2022-03-03): documentation here
@@ -258,7 +241,6 @@ impl Web3Manager {
         slippage: usize,
     ) -> Result<H256, web3::Error> {
         let contract_function = "swapTokensForExactTokens";
-        let deadline = self.generate_deadline().unwrap();
 
         let router_abi = include_bytes!("../abi/PancakeRouterAbi.json");
         let router_instance: Contract<Http> = self
@@ -285,7 +267,7 @@ impl Web3Manager {
             min_amount_less_slippage,
             addresses,
             self.first_loaded_account(),
-            deadline + 600usize,
+            self.generate_deadline(),
         );
 
         println!("amount_out: {:?}", token_amount);
@@ -345,13 +327,12 @@ impl Web3Manager {
             addresses.push(Address::from_str(pair).unwrap());
         }
 
-        let deadline = self.generate_deadline().unwrap();
         let parameters = (
             token_amount,
             U256::from_dec_str("0").unwrap(),
             addresses,
             self.first_loaded_account(),
-            deadline + 600usize,
+            self.generate_deadline(),
         );
         let nonce: U256 = self.get_current_nonce();
 
@@ -427,12 +408,11 @@ impl Web3Manager {
         let min_amount = U256::from(amount_out_min[1].as_u128());
         let min_amount_less_slippage = min_amount - ((min_amount * slippage) / 100usize);
 
-        let deadline = self.generate_deadline().unwrap();
         let parameters = (
             min_amount_less_slippage,
             addresses,
             account,
-            deadline + 600usize,
+            self.generate_deadline(),
         );
 
         let nonce: U256 = self.get_current_nonce();
@@ -1028,23 +1008,4 @@ impl Web3Manager {
     }
 }
 
-pub fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> {
-    let mut results = vec![];
-    let mut current = vec![];
-    for i in data {
-        if current.len() >= chunk_size {
-            results.push(current);
-            current = vec![];
-        }
-        current.push(i);
-    }
-    results.push(current);
 
-    return results;
-}
-
-pub fn split_vector_in_chunks2(data: &[Uint], chunk_size: usize) -> Vec<Vec<Uint>> {
-    data.chunks(chunk_size)
-        .map(|element| element.to_vec())
-        .collect()
-}

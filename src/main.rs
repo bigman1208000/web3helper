@@ -45,7 +45,14 @@ async fn main() -> web3::Result<()> {
     .await;
 
     // 4. DO REAL BUY
-    let buy_price = do_real_buy(&mut web3m, account, router_address.as_str(), token_address.as_str(), invest_amount).await;
+    let buy_price = do_real_buy(
+        &mut web3m,
+        account,
+        router_address.as_str(),
+        token_address.as_str(),
+        invest_amount,
+    )
+    .await;
     clear_screen();
 
     let sell_tx_ok: bool = false;
@@ -53,7 +60,7 @@ async fn main() -> web3::Result<()> {
     while !sell_tx_ok {
         let token_price =
             get_token_price(&mut web3m, router_address.as_str(), token_address.as_str()).await;
-        let token_eth_price = web3m.wei_to_eth(token_price);
+        let token_eth_price = wei_to_eth(token_price);
 
         /*
         let timestamp = SystemTime::now()

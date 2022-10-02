@@ -7,6 +7,7 @@ use std::process::exit;
 use std::str::FromStr;
 use std::thread;
 use web3::contract::Contract;
+use web3::ethabi::Uint;
 use web3::helpers as w3h;
 use web3::transports::Http;
 use web3::types::{Address, H160, H256, U256};
@@ -62,7 +63,7 @@ pub async fn get_token_price_info(
 ) -> (U256, f64) {
     let token_price = get_token_price(web3m, router_address, token_address).await;
     let price_change_percent =
-        calc_price_change_percent(web3m.wei_to_eth(buy_price), web3m.wei_to_eth(token_price));
+        calc_price_change_percent(wei_to_eth(buy_price), wei_to_eth(token_price));
 
     (token_price, price_change_percent)
 }
@@ -141,7 +142,7 @@ pub async fn check_fees(web3m: &mut Web3Manager, account: H160, token_address: &
                 is_enabled = true;
                 println!("{}", "BUY OK".green());
                 let token_balance = web3m.get_token_balance(token_address, account).await;
-                println!("Token Balance {}", web3m.wei_to_eth(token_balance));
+                println!("Token Balance {}", wei_to_eth(token_balance));
             } else {
                 println!("{}", tx_result.err().unwrap().to_string().red());
                 slippage += 1;
@@ -205,7 +206,7 @@ pub async fn check_trading_enable(
                 //is_enabled = true;
                 println!("{}", "BUY OK".green());
                 let token_balance = web3m.get_token_balance(token_address, account).await;
-                println!("Token Balance {}", web3m.wei_to_eth(token_balance));
+                println!("Token Balance {}", wei_to_eth(token_balance));
             } else {
                 println!("{}", tx_result.err().unwrap().to_string().red());
                 slippage += 1;
@@ -252,7 +253,7 @@ pub async fn do_real_sell(
     let mut sell_tx_ok: bool = false;
 
     let token_balance = web3m.get_token_balance(token_address, account).await;
-    println!("Token Balance {}", web3m.wei_to_eth(token_balance));
+    println!("Token Balance {}", wei_to_eth(token_balance));
     let (mut last_token_price, price_change_percent) =
         get_token_price_info(web3m, router_address, token_address, buy_price).await;
     let mut price_hit_take_profit_ath = false;
@@ -264,10 +265,8 @@ pub async fn do_real_sell(
         let (token_price, price_change_percent) =
             get_token_price_info(web3m, router_address, token_address, buy_price).await;
 
-        let ath_price_change_percent = calc_price_change_percent(
-            web3m.wei_to_eth(last_token_price),
-            web3m.wei_to_eth(token_price),
-        );
+        let ath_price_change_percent =
+            calc_price_change_percent(wei_to_eth(last_token_price), wei_to_eth(token_price));
 
         if token_price > last_token_price {
             last_token_price = token_price;
@@ -294,7 +293,7 @@ pub async fn do_real_sell(
             hour,
             now.minute(),
             now.second(),
-            web3m.wei_to_eth(token_price),
+            wei_to_eth(token_price),
             price_change_percent
         );
 
@@ -351,7 +350,7 @@ pub async fn do_real_buy(
         if tx_result.is_ok() {
             is_enabled = true;
             let token_balance = web3m.get_token_balance(token_address, account).await;
-            println!("Token Balance {}", web3m.wei_to_eth(token_balance));
+            println!("Token Balance {}", wei_to_eth(token_balance));
         } else {
             println!("{}", tx_result.err().unwrap().to_string().red());
         }
@@ -387,7 +386,7 @@ pub async fn check_honeypot(
 
     while is_honey_pot {
         let token_balance = web3m.get_token_balance(token_address, account).await;
-        println!("Token Balance {}", web3m.wei_to_eth(token_balance));
+        println!("Token Balance {}", wei_to_eth(token_balance));
 
         let path_address: Vec<&str> = vec![
             token_address,
@@ -441,7 +440,7 @@ pub async fn sell_all(web3m: &mut Web3Manager, account: H160, token_address: &st
 
     while !sell_ok {
         let token_balance = web3m.get_token_balance(token_address, account).await;
-        println!("Token Balance {}", web3m.wei_to_eth(token_balance));
+        println!("Token Balance {}", wei_to_eth(token_balance));
 
         let path_address: Vec<&str> = vec![
             token_address,
@@ -541,4 +540,36 @@ pub async fn do_approve(
         .await
         .unwrap();
     println!("approve_tx {:?}", approve_tx);
+}
+
+pub fn split_vector_in_chunks(data: Vec<Uint>, chunk_size: usize) -> Vec<Vec<Uint>> {
+    let mut results = vec![];
+    let mut current = vec![];
+    for i in data {
+        if current.len() >= chunk_size {
+            results.push(current);
+            current = vec![];
+        }
+        current.push(i);
+    }
+    results.push(current);
+
+    return results;
+}
+
+pub fn split_vector_in_chunks2(data: &[Uint], chunk_size: usize) -> Vec<Vec<Uint>> {
+    data.chunks(chunk_size)
+        .map(|element| element.to_vec())
+        .collect()
+}
+
+pub fn wei_to_eth(wei_val: U256) -> f64 {
+    let res = wei_val.as_u128() as f64;
+    res / 1_000_000_000_000_000_000.0
+}
+
+pub fn eth_to_wei(eth_val: f64) -> U256 {
+    let result = eth_val * 1_000_000_000_000_000_000.0;
+    let result = result as u128;
+    U256::from(result)
 }

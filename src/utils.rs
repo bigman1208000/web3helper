@@ -430,10 +430,7 @@ pub async fn get_env_variables() -> (
     f64,
     f64,
     f64,
-    f64,
-    String,
-    String,
-    u64,
+    f64
 ) {
     let account_puk = env::var("ACCOUNT_ADDRESS").unwrap();
     let account_prk = env::var("PRIVATE_TEST_KEY").unwrap();
@@ -445,10 +442,6 @@ pub async fn get_env_variables() -> (
     let max_slipage = env::var("MAX_SLIPPAGE").unwrap().parse::<f64>().unwrap();
     let mut stop_loss_percent = env::var("STOP_LOSS").unwrap().parse::<f64>().unwrap();
     let take_profit_percent = env::var("TAKE_PROFIT").unwrap().parse::<f64>().unwrap();
-
-    let web3_http_url = env::var("RPC_URL").unwrap();
-    let web3_websocket_url = env::var("RPC_WS_URL").unwrap();
-    let chain_id = env::var("CHAIN_ID").unwrap().parse::<u64>().unwrap();
     stop_loss_percent = -stop_loss_percent;
 
     println!("--- ENVIRONMENT VARIABLES ---");
@@ -460,9 +453,6 @@ pub async fn get_env_variables() -> (
     println!("max_slipage {}", max_slipage);
     println!("stop_loss_percent {}", stop_loss_percent);
     println!("take_profit_percent {}", take_profit_percent);
-    println!("web3_http_url {}", web3_http_url);
-    println!("web3_websocket_url {}", web3_websocket_url);
-    println!("chain_id {}", chain_id);
     println!("--- ENVIRONMENT VARIABLES ---");
 
     return (
@@ -473,10 +463,7 @@ pub async fn get_env_variables() -> (
         invest_amount,
         max_slipage,
         stop_loss_percent,
-        take_profit_percent,
-        web3_http_url,
-        web3_websocket_url,
-        chain_id,
+        take_profit_percent
     );
 }
 

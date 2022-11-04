@@ -9,9 +9,6 @@ use web3_rust_wrapper::Web3Manager;
 async fn main() -> web3::Result<()> {
     dotenv::dotenv().ok();
 
-    println!("inves amount: {}", eth_to_wei(1.2, 18));
-    exit(0);
-
     let (
         account_puk,
         account_prk,
@@ -21,25 +18,17 @@ async fn main() -> web3::Result<()> {
         max_slipage,
         stop_loss,
         take_profit_percent,
-        web3_http_url,
-        web3_websocket_url,
-        chain_id,
     ) = get_env_variables().await;
 
-    // INITIALIZE VALUES
-
-    let mut web3m: Web3Manager = Web3Manager::new(
-        web3_http_url.as_str(),
-        web3_websocket_url.as_str(),
-        chain_id,
-    )
+    // INITIALIZE Web3Manager
+    let mut web3m: Web3Manager = Web3Manager::new(web3_rust_wrapper::Network::BSCTestnet)
     .await;
+
+    // INITIALIZE ACCOUNT
     web3m
         .load_account(account_puk.as_str(), account_prk.as_str())
         .await;
     let account: H160 = web3m.first_loaded_account();
-
-    println!("inves amount: {}", eth_to_wei(invest_amount, 18));
 
     // 1. CHECK IF TOKEN HAS LIQUIDITY
     // 2. CHECK TRADING ENABLE
@@ -51,7 +40,7 @@ async fn main() -> web3::Result<()> {
         token_address.as_str(),
     )
     .await;
-    println!("invest_amount {}", invest_amount);
+
     // 4. DO REAL BUY
     let buy_price = do_real_buy(
         &mut web3m,

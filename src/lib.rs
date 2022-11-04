@@ -35,6 +35,7 @@ use web3::types::{
 };
 use web3::Web3;
 
+
 // use hex_literal::hex;
 
 /// Emulates a `switch` statement.
@@ -123,6 +124,87 @@ pub struct KeyPair {
     pub secret_key: String,
     pub public_key: String,
 }
+
+
+
+#[derive(Clone, Debug)]
+pub struct EVMNetwork {
+    pub http_url: String,
+    pub ws_url: String,
+    pub chain_id: Option<u64>,
+}
+
+pub enum Network {
+    EthereumMainnet = 1,
+    EthereumGoerli = 5,
+    BSCMainnet = 96,
+    BSCTestnet = 97,
+    AvalancheMainnet = 99,
+    AvalancheTestnet = 100,
+}
+
+impl EVMNetwork {
+    pub fn new(network_id: Network) -> EVMNetwork {
+        let mut _http_url = "";
+        let mut _socket_url = "";
+
+        match network_id {
+            Network::EthereumMainnet => {
+                _http_url =
+                    "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/ethereum/mainnet";
+                _socket_url = "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/ethereum/mainnet/ws";
+            }
+            Network::EthereumGoerli => {
+                _http_url =
+                    "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/ethereum/goerli";
+                _socket_url =
+                    "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/ethereum/goerli/ws";
+            }
+            Network::BSCMainnet => {
+                _http_url =
+                    "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/mainnet";
+                _socket_url =
+                    "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/mainnet/ws";
+            }
+            Network::BSCTestnet => {
+                _http_url =
+                    "https://rpc.ankr.com/bsc_testnet_chapel";
+                _socket_url =
+                    "wss://bsc-testnet.nodereal.io/ws/v1/d4224d2458594df5830eb45cdef8b45b";
+            }
+            Network::AvalancheMainnet => {
+                _http_url = "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/avalanche/mainnet";
+                _socket_url = "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/avalanche/mainnet/ws";
+            }
+            Network::AvalancheTestnet => {
+                _http_url = "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/avalanche/mainnet";
+                _socket_url = "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/avalanche/mainnet/ws";
+            }
+            _ => {
+                _http_url = "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/avalanche/mainnet";
+                _socket_url = "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/avalanche/mainnet/ws";
+            }
+        }
+
+        let u64chain_id: u64 = network_id as u64;
+        println!("chain id: {}", u64chain_id);
+        let chain_id: Option<u64> = Option::Some(u64::try_from(u64chain_id).unwrap());
+
+        EVMNetwork {
+            http_url: String::from(_http_url),
+            ws_url: String::from(_socket_url),
+            chain_id,
+        }
+    }
+}
+
+#[test]
+fn new_network() {
+    let network = EVMNetwork::new(Network::BSCMainnet);
+    println!("{:?}", network);
+}
+
+
 
 #[derive(Clone, Debug)]
 pub struct Web3Manager {
@@ -503,7 +585,7 @@ impl Web3Manager {
         self
     }
 
-    pub async fn new(http_url: &str, websocket_url: &str, u64chain_id: u64) -> Web3Manager {
+    pub async fn new_from_rpc_url(http_url: &str, websocket_url: &str, u64chain_id: u64) -> Web3Manager {
         // init web3 http connection
         let web3http: Web3<Http> = web3::Web3::new(web3::transports::Http::new(http_url).unwrap());
 
@@ -521,6 +603,36 @@ impl Web3Manager {
 
         //let chain_id: Option<u64> = Option::Some(u64::try_from(web3http.eth().chain_id().await.unwrap()).unwrap());
         let chain_id: Option<u64> = Option::Some(u64::try_from(u64chain_id).unwrap());
+
+        Web3Manager {
+            accounts,
+            web3http,
+            web3web_socket,
+            accounts_map,
+            current_nonce,
+            chain_id,
+        }
+    }
+
+    pub async fn new(network_id: Network) -> Web3Manager {
+        // http_url: &str, websocket_url: &str, u64chain_id: u64
+        let network = EVMNetwork::new(network_id);
+
+        // init web3 http connection
+        let web3http: Web3<Http> = web3::Web3::new(web3::transports::Http::new(network.http_url.as_str()).unwrap());
+
+        // init web3 ws connection
+        let web3web_socket: Web3<WebSocket> = web3::Web3::new(
+            web3::transports::WebSocket::new(network.ws_url.as_str())
+                .await
+                .unwrap(),
+        );
+
+        // create empty vector for store accounts
+        let accounts: Vec<Address> = vec![];
+        let accounts_map: HashMap<H160, String> = HashMap::new();
+        let current_nonce: U256 = U256::from_dec_str("0").unwrap();
+        let chain_id: Option<u64> = Option::Some(u64::try_from(network.chain_id.unwrap()).unwrap());
 
         Web3Manager {
             accounts,

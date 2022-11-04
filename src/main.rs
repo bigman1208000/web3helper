@@ -1,4 +1,6 @@
 pub mod utils;
+use std::process::exit;
+
 pub use utils::*;
 use web3::types::H160;
 use web3_rust_wrapper::Web3Manager;
@@ -6,6 +8,9 @@ use web3_rust_wrapper::Web3Manager;
 #[tokio::main]
 async fn main() -> web3::Result<()> {
     dotenv::dotenv().ok();
+
+    println!("inves amount: {}", eth_to_wei(1.2, 18));
+    exit(0);
 
     let (
         account_puk,
@@ -16,14 +21,25 @@ async fn main() -> web3::Result<()> {
         max_slipage,
         stop_loss,
         take_profit_percent,
+        web3_http_url,
+        web3_websocket_url,
+        chain_id,
     ) = get_env_variables().await;
 
     // INITIALIZE VALUES
-    let mut web3m: Web3Manager =
-        init_web3_connection(account_puk.as_str(), account_prk.as_str()).await;
+
+    let mut web3m: Web3Manager = Web3Manager::new(
+        web3_http_url.as_str(),
+        web3_websocket_url.as_str(),
+        chain_id,
+    )
+    .await;
+    web3m
+        .load_account(account_puk.as_str(), account_prk.as_str())
+        .await;
     let account: H160 = web3m.first_loaded_account();
 
-    println!("inves amount: {}", eth_to_wei(invest_amount));
+    println!("inves amount: {}", eth_to_wei(invest_amount, 18));
 
     // 1. CHECK IF TOKEN HAS LIQUIDITY
     // 2. CHECK TRADING ENABLE
@@ -42,7 +58,7 @@ async fn main() -> web3::Result<()> {
         account,
         router_address.as_str(),
         token_address.as_str(),
-        eth_to_wei(invest_amount),
+        eth_to_wei(invest_amount, 18),
     )
     .await;
     clear_screen();

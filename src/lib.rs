@@ -273,8 +273,6 @@ impl Web3Manager {
         println!("amount_out: {:?}", token_amount);
         println!("min_amount_less_slippage: {:?}", min_amount_less_slippage);
 
-        let nonce: U256 = self.get_current_nonce();
-
         let send_tx_result = self
             .sign_and_send_tx(
                 account,
@@ -282,7 +280,6 @@ impl Web3Manager {
                 contract_function,
                 &parameters2,
                 token_amount,
-                nonce.as_u64(),
             )
             .await;
 
@@ -334,7 +331,6 @@ impl Web3Manager {
             self.first_loaded_account(),
             self.generate_deadline(),
         );
-        let nonce: U256 = self.get_current_nonce();
 
         let send_tx_result = self
             .sign_and_send_tx(
@@ -343,7 +339,6 @@ impl Web3Manager {
                 contract_function,
                 &parameters,
                 U256::from_dec_str("0").unwrap(),
-                nonce.as_u64(),
             )
             .await;
 
@@ -422,8 +417,6 @@ impl Web3Manager {
             self.generate_deadline(),
         );
 
-        let nonce: U256 = self.get_current_nonce();
-
         println!("slippage {}", slippage);
         println!("eth_amount {}", eth_amount);
         println!("amount_out_min[0] {}", amount_out_min[0]);
@@ -437,7 +430,6 @@ impl Web3Manager {
                 contract_function,
                 &parameters,
                 eth_amount,
-                nonce.as_u64(),
             )
             .await;
 
@@ -469,13 +461,17 @@ impl Web3Manager {
 
     // Counts the number of exececuted transactions by the loaded wallet to set the 'nonce' param for current transacction
     // Cuenta el número de transacciones se han ejecutado con la wallet cargada para establecer el parámetro 'nonce' en la transacción actual
-    pub async fn last_nonce(&self, account: H160) -> Result<U256, web3::Error> {
+    pub async fn last_nonce(&self, account: H160) -> U256 {
         let block_number: Option<BlockNumber> = Option::Some(BlockNumber::Pending);
 
-        self.web3http
+        let nonce = self
+            .web3http
             .eth()
             .transaction_count(account, block_number)
             .await
+            .unwrap();
+
+        return nonce;
 
         /*
         self.web3http
@@ -500,9 +496,9 @@ impl Web3Manager {
         self.accounts.push(wallet);
 
         // get last nonce from loaded account
-        let nonce: U256 = self.last_nonce(wallet).await.unwrap();
+        let nonce: U256 = self.last_nonce(wallet).await;
 
-        self.current_nonce = nonce;
+        self.set_current_nonce(nonce);
 
         self
     }
@@ -590,6 +586,9 @@ impl Web3Manager {
         gas_price: U256,
         data: Bytes,
     ) -> TransactionParameters {
+
+        print!("nonce: {}", nonce);
+
         TransactionParameters {
             nonce: Some(nonce),
             to: Some(to),
@@ -665,8 +664,6 @@ impl Web3Manager {
         let contract_function = "approve";
         let contract_function_parameters = (spender_address, U256::from_dec_str(value).unwrap());
 
-        let nonce: U256 = self.current_nonce;
-
         let send_tx_result = self
             .sign_and_send_tx(
                 account,
@@ -674,7 +671,6 @@ impl Web3Manager {
                 &contract_function.to_string(),
                 &contract_function_parameters,
                 U256::from_dec_str("0").unwrap(),
-                nonce.as_u64(),
             )
             .await;
 
@@ -688,7 +684,6 @@ impl Web3Manager {
         func: &str,
         params: &P,
         value: U256,
-        current_nonce: u64,
     ) -> Result<H256, web3::Error>
     where
         P: Tokenize,
@@ -714,7 +709,6 @@ impl Web3Manager {
         // todo return err
         let mut used_gas = U256::from_dec_str("0").unwrap();
         if gas_estimation_result.is_err() {
-            
         } else {
             used_gas = gas_estimation_result.unwrap();
         }
@@ -724,9 +718,14 @@ impl Web3Manager {
 
         let gas_price: U256 = self.web3http.eth().gas_price().await.unwrap();
 
+        let mut nonce: U256 = self.get_current_nonce();
+        println!("current_nonce: {:?}", nonce);
+        nonce = nonce + U256::from_str("1").unwrap();
+        println!("current_nonce + 1: {:?}", nonce);
+
         // 3. build tx parameters
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(
-            U256::from(current_nonce),
+            nonce,
             contract_instance.address(),
             value,
             estimated_tx_gas,
@@ -745,9 +744,9 @@ impl Web3Manager {
             .send_raw_transaction(signed_transaction.raw_transaction)
             .await;
 
-        println!("current_nonce: {:?}", current_nonce);
+        println!("current_nonce after: {:?}", nonce);
 
-        self.update_nonce();
+   
 
         return tx_result;
     }
@@ -791,7 +790,7 @@ impl Web3Manager {
     pub async fn sent_erc20_token(
         &mut self,
         account: H160,
-        contract_instance: &Contract<Http>,
+        contract_instance: Contract<Http>,
         to: &str,
         token_amount: &str,
     ) -> H256 {
@@ -801,16 +800,13 @@ impl Web3Manager {
         let contract_function_parameters =
             (recipient_address, U256::from_dec_str(token_amount).unwrap());
 
-        let nonce: U256 = self.current_nonce;
-
         let send_tx_result = self
             .sign_and_send_tx(
                 account,
-                contract_instance,
+                &contract_instance,
                 contract_function,
                 &contract_function_parameters,
                 U256::from_dec_str("0").unwrap(),
-                nonce.as_u64(),
             )
             .await;
 

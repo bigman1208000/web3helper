@@ -61,7 +61,7 @@ pub async fn get_token_price_info(
 ) -> (U256, f64) {
     let token_price = get_token_price(web3m, router_address, token_address).await;
     let price_change_percent =
-        calc_price_change_percent(wei_to_eth(buy_price), wei_to_eth(token_price));
+        calc_price_change_percent(wei_to_eth(buy_price, 18), wei_to_eth(token_price, 18));
 
     (token_price, price_change_percent)
 }
@@ -106,9 +106,7 @@ pub async fn check_before_buy(
     token_address: &str,
 ) {
     let factory_address = "0xB7926C0430Afb07AA7DEfDE6DA862aE0Bde767bc";
-    let token_lp_address = web3m
-        .find_lp_pair(factory_address, token_address)
-        .await;
+    let token_lp_address = web3m.find_lp_pair(factory_address, token_address).await;
 
     // 1. CHECK IF TOKEN HAS LIQUIDITY
     check_has_liquidity(web3m, token_lp_address.as_str()).await;
@@ -149,7 +147,7 @@ pub async fn check_trading_enable(
                 is_enabled = true;
                 println!("{}", "BUY OK".green());
                 let token_balance = web3m.get_token_balance(token_address, account).await;
-                println!("Token Balance {}", wei_to_eth(token_balance));
+                println!("Token Balance {}", wei_to_eth(token_balance, 18));
             } else {
                 println!("{}", tx_result.err().unwrap().to_string().red());
                 slippage += 1;
@@ -209,7 +207,7 @@ pub async fn do_real_sell(
             get_token_price_info(web3m, router_address, token_address, buy_price).await;
 
         let ath_price_change_percent =
-            calc_price_change_percent(wei_to_eth(token_ath_price), wei_to_eth(token_price));
+            calc_price_change_percent(wei_to_eth(token_ath_price, 18), wei_to_eth(token_price, 18));
 
         if token_price > last_token_price {
             last_token_price = token_price;
@@ -240,8 +238,8 @@ pub async fn do_real_sell(
             hour,
             now.minute(),
             now.second(),
-            wei_to_eth(token_price),
-            wei_to_eth(token_ath_price),
+            wei_to_eth(token_price, 18),
+            wei_to_eth(token_ath_price, 18),
             price_change_percent,
             ath_price_change_percent
         );
@@ -300,7 +298,7 @@ pub async fn do_real_buy(
         if tx_result.is_ok() {
             is_enabled = true;
             let token_balance = web3m.get_token_balance(token_address, account).await;
-            println!("Token Balance {}", wei_to_eth(token_balance));
+            println!("Token Balance {}", wei_to_eth(token_balance, 18));
         } else {
             println!("{}", tx_result.err().unwrap().to_string().red());
         }
@@ -336,7 +334,7 @@ pub async fn check_honeypot(
 
     while is_honey_pot {
         let token_balance = web3m.get_token_balance(token_address, account).await;
-        println!("Token Balance {}", wei_to_eth(token_balance));
+        println!("Token Balance {}", wei_to_eth(token_balance, 18));
 
         let path_address: Vec<&str> = vec![
             token_address,
@@ -393,7 +391,7 @@ pub async fn sell_all(
 
     while !sell_ok {
         let token_balance = web3m.get_token_balance(token_address, account).await;
-        println!("Token Balance {}", wei_to_eth(token_balance));
+        println!("Token Balance {}", wei_to_eth(token_balance, 18));
 
         let path_address: Vec<&str> = vec![
             token_address,
@@ -424,23 +422,19 @@ fn print_welcome() {
     println!("{}", "Welcome".green());
 }
 
-pub async fn init_web3_connection(account_puk: &str, account_prk: &str) -> Web3Manager {
-    //let web3_http_url = "http://127.0.0.1:8545";
-    //let web3_websocket_url = "ws://127.0.0.1:8545/ws";
-    //let chain_id = 31337;
-
-    let web3_http_url = "https://bsc-testnet.nodereal.io/v1/d4224d2458594df5830eb45cdef8b45b";
-    let web3_websocket_url = "wss://bsc-testnet.nodereal.io/ws/v1/d4224d2458594df5830eb45cdef8b45b";
-    let chain_id = 97;
-
-    let mut web3m: Web3Manager =
-        Web3Manager::new(web3_http_url, web3_websocket_url, chain_id).await;
-
-    web3m.load_account(account_puk, account_prk).await;
-    web3m
-}
-
-pub async fn get_env_variables() -> (String, String, String, String, f64, f64, f64, f64) {
+pub async fn get_env_variables() -> (
+    String,
+    String,
+    String,
+    String,
+    f64,
+    f64,
+    f64,
+    f64,
+    String,
+    String,
+    u64,
+) {
     let account_puk = env::var("ACCOUNT_ADDRESS").unwrap();
     let account_prk = env::var("PRIVATE_TEST_KEY").unwrap();
     let router_address = env::var("ROUTER_ADDRESS").unwrap();
@@ -452,9 +446,12 @@ pub async fn get_env_variables() -> (String, String, String, String, f64, f64, f
     let mut stop_loss_percent = env::var("STOP_LOSS").unwrap().parse::<f64>().unwrap();
     let take_profit_percent = env::var("TAKE_PROFIT").unwrap().parse::<f64>().unwrap();
 
+    let web3_http_url = env::var("RPC_URL").unwrap();
+    let web3_websocket_url = env::var("RPC_WS_URL").unwrap();
+    let chain_id = env::var("CHAIN_ID").unwrap().parse::<u64>().unwrap();
     stop_loss_percent = -stop_loss_percent;
 
-    println!("");
+    println!("--- ENVIRONMENT VARIABLES ---");
     println!("account_puk {}", account_puk);
     println!("account_prk {}", account_prk);
     println!("router_address {}", router_address);
@@ -463,7 +460,10 @@ pub async fn get_env_variables() -> (String, String, String, String, f64, f64, f
     println!("max_slipage {}", max_slipage);
     println!("stop_loss_percent {}", stop_loss_percent);
     println!("take_profit_percent {}", take_profit_percent);
-    println!("");
+    println!("web3_http_url {}", web3_http_url);
+    println!("web3_websocket_url {}", web3_websocket_url);
+    println!("chain_id {}", chain_id);
+    println!("--- ENVIRONMENT VARIABLES ---");
 
     return (
         account_puk,
@@ -474,6 +474,9 @@ pub async fn get_env_variables() -> (String, String, String, String, f64, f64, f
         max_slipage,
         stop_loss_percent,
         take_profit_percent,
+        web3_http_url,
+        web3_websocket_url,
+        chain_id,
     );
 }
 
@@ -520,13 +523,13 @@ pub fn split_vector_in_chunks2(data: &[Uint], chunk_size: usize) -> Vec<Vec<Uint
         .collect()
 }
 
-pub fn wei_to_eth(wei_val: U256) -> f64 {
+pub fn wei_to_eth(wei_val: U256, decimals: u64) -> f64 {
     let res = wei_val.as_u128() as f64;
-    res / 1_000_000_000_000_000_000.0
+    res / 10.0_f64.powi(decimals as i32)
 }
 
-pub fn eth_to_wei(eth_val: f64) -> U256 {
-    let result = eth_val * 1_000_000_000_000_000_000.0;
+pub fn eth_to_wei(eth_val: f64, decimals: u64) -> U256 {
+    let result = eth_val * 10.0_f64.powi(decimals as i32);
     let result = result as u128;
     U256::from(result)
 }

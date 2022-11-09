@@ -205,6 +205,21 @@ fn new_network() {
 }
 
 
+// 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3
+#[derive(Clone, Debug)]
+pub struct Router {
+    pub address: String,
+    pub factory: String,
+}
+
+impl Router {
+    pub async fn new(network_id: Network) {
+        
+        
+    }
+}
+
+
 
 #[derive(Clone, Debug)]
 pub struct Web3Manager {

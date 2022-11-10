@@ -135,7 +135,7 @@ pub enum Network {
     EthereumMainnet = 1,
     EthereumGoerli = 5,
     EthereumSepolia = 11155111,
-    BSCMainnet = 96,
+    BSCMainnet = 56,
     BSCTestnet = 97,
     AvalancheMainnet = 99,
     AvalancheTestnet = 100,
@@ -149,8 +149,8 @@ impl EVMNetwork {
         match network_id {
             Network::EthereumMainnet => {
                 _http_url =
-                    "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/ethereum/mainnet";
-                _socket_url = "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/ethereum/mainnet/ws";
+                    "https://mainnet.infura.io/v3/d39a866f4f6d49b9916f9269bf880110";
+                _socket_url = "https://goerli.infura.io/v3/d39a866f4f6d49b9916f9269bf880110";
             }
             Network::EthereumGoerli => {
                 _http_url = "https://goerli.infura.io/v3/d39a866f4f6d49b9916f9269bf880110";
@@ -162,9 +162,9 @@ impl EVMNetwork {
             }
             Network::BSCMainnet => {
                 _http_url =
-                    "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/mainnet";
+                    "https://bsc-mainnet.nodereal.io/v1/35714f2a92134c78b61e57d04a9e82b0";
                 _socket_url =
-                    "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/mainnet/ws";
+                    "wss://bsc-mainnet.nodereal.io/ws/v1/35714f2a92134c78b61e57d04a9e82b0";
             }
             Network::BSCTestnet => {
                 _http_url = "https://rpc.ankr.com/bsc_testnet_chapel";

@@ -92,7 +92,6 @@ pub async fn get_token_price(
     }
 
     let token_price: U256 = web3m
-        .clone()
         .get_token_price(router_address, addresses)
         .await;
 
@@ -399,7 +398,6 @@ pub async fn sell_all(
         ];
 
         let tx_result = web3m
-            .clone()
             .swap_exact_tokens_for_tokens_supporting_fee_on_transfer_tokens(
                 account,
                 router_address,

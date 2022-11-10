@@ -239,6 +239,30 @@ impl Web3Manager {
         self.current_nonce = new_nonce;
     }
 
+    /*
+    pub async fn call_write_function<P: Clone>(
+        &mut self,
+        account: H160,
+        contract_instance: Contract<Http>,
+        contract_function: String,
+        params: P,
+    ) -> Result<H256, web3::Error>
+    where
+        P: Tokenize,
+    {
+        let tx_result = self
+            .sign_and_send_tx(
+                account,
+                &contract_instance,
+                &contract_function.to_string(),
+                &params,
+                U256::from_dec_str("0").unwrap(),
+            )
+            .await;
+        tx_result
+    }
+    */
+
     pub async fn instance_contract(
         &self,
         plain_contract_address: &str,

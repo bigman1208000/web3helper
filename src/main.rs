@@ -67,9 +67,6 @@ async fn main() -> web3::Result<()> {
         )
         .await;
 
-    let nonce = web3m_eth.get_current_nonce();
-    println!("nonce {}", nonce);
-    let base: u128 = 10;
     let account = web3m_eth.first_loaded_account();
 
     let dead_address = "0x000000000000000000000000000000000000dead";
@@ -137,44 +134,61 @@ async fn main() -> web3::Result<()> {
         let event_token: EventToken = decode_log(&abi, &log.unwrap());
         println!("event_token: {:?}", event_token);
 
-        if event_token.to == dead_address
-            && event_token.amount.parse::<u128>().unwrap() >= 5555000000000000000000
-        {
+        let is_burn_ok = event_token.to == dead_address && event_token.amount.parse::<u128>().unwrap() >= 5555000000000000000000;
+        if is_burn_ok {
             println!("Burn greater or equal than 5555");
             burn_result.users.push(event_token);
 
             if burn_result.users.len() >= airdrop_users_number.try_into().unwrap() {
                 println!("Add users to holders");
 
-                let mut addresses = Vec::new();
-                let mut amounts = Vec::new();
+                let tx_result = call_add_holders_function(
+                    &mut web3m_eth,
+                    &eth_contract_instance,
+                    &burn_result.users,
+                )
+                .await;
 
-                for user in &burn_result.users {
-                    let parsed_amount = user.amount.parse::<u128>().unwrap() / base.pow(18);
-                    addresses.push(Address::from_str(user.from.as_str()).unwrap());
-                    amounts.push(U256::from(parsed_amount));
-                }
-                println!("{:?}", amounts);
-
-                let contract_function = "addTokenHolders";
-                let contract_function_parameters = (addresses, amounts);
-
-                let send_tx_result = web3m_eth
-                    .sign_and_send_tx(
-                        account,
-                        &eth_contract_instance,
-                        &contract_function.to_string(),
-                        &contract_function_parameters,
-                        U256::from_dec_str("0").unwrap(),
-                    )
-                    .await
-                    .unwrap();
-                println!("approve_tx {:?}", send_tx_result);
+                println!("tx_result {:?}", tx_result);
             }
         }
     }
 
     return Ok(());
+}
+
+async fn call_add_holders_function(
+    web3m: &mut Web3Manager,
+    contract_instance: &Contract<Http>,
+    users: &Vec<EventToken>,
+) -> web3::types::H256 {
+    let contract_function = "addTokenHolders";
+    let contract_function_parameters = create_add_holders_parameters(users);
+
+    let tx_result = web3m
+        .sign_and_send_tx(
+            web3m.first_loaded_account(),
+            &contract_instance,
+            &contract_function.to_string(),
+            &contract_function_parameters,
+            U256::from_dec_str("0").unwrap(),
+        )
+        .await
+        .unwrap();
+    tx_result
+}
+
+fn create_add_holders_parameters(users: &Vec<EventToken>) -> (Vec<H160>, Vec<U256>) {
+    let base: u128 = 10;
+    let mut addresses = Vec::new();
+    let mut amounts = Vec::new();
+
+    for user in users {
+        let parsed_amount = user.amount.parse::<u128>().unwrap() / base.pow(18);
+        addresses.push(Address::from_str(user.from.as_str()).unwrap());
+        amounts.push(U256::from(parsed_amount));
+    }
+    (addresses, amounts)
 }
 
 // function for decode log and return the decoded data

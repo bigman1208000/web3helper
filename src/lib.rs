@@ -823,24 +823,22 @@ impl Web3Manager {
             )
             .await;
 
-        let estimated_tx_gas = U256::from_dec_str("5000000").unwrap();
+        let estimated_tx_gas = gas_estimation_result.unwrap();
 
+        /*
+         let estimated_tx_gas = U256::from_dec_str("5000000").unwrap();
         // todo return err
         let mut used_gas = U256::from_dec_str("0").unwrap();
         if gas_estimation_result.is_err() {
         } else {
             used_gas = gas_estimation_result.unwrap();
         }
+        */
 
         // 2. encode_tx_data
         let tx_data: Bytes = self.encode_tx_data(contract_instance, func, params.clone());
-
         let gas_price: U256 = self.web3http.eth().gas_price().await.unwrap();
-
         let mut nonce: U256 = self.get_current_nonce();
-        println!("current_nonce: {:?}", nonce);
-        nonce = nonce + U256::from_str("1").unwrap();
-        println!("current_nonce + 1: {:?}", nonce);
 
         // 3. build tx parameters
         let tx_parameters: TransactionParameters = self.encode_tx_parameters(
@@ -852,7 +850,21 @@ impl Web3Manager {
             tx_data,
         );
 
-        // 4. sign tx
+        // 4. sign tx and send tx
+        let tx_result = self.sign_and_send_transaction(account, tx_parameters).await;
+
+        self.update_nonce();
+        nonce = self.get_current_nonce();
+        println!("current_nonce after: {:?}", nonce);
+
+        return tx_result;
+    }
+
+    async fn sign_and_send_transaction(
+        &mut self,
+        account: H160,
+        tx_parameters: TransactionParameters,
+    ) -> Result<H256, web3::Error> {
         let signed_transaction: SignedTransaction =
             self.sign_transaction(account, tx_parameters).await;
 
@@ -862,10 +874,7 @@ impl Web3Manager {
             .eth()
             .send_raw_transaction(signed_transaction.raw_transaction)
             .await;
-
-        println!("current_nonce after: {:?}", nonce);
-
-        return tx_result;
+        tx_result
     }
 
     fn update_nonce(&mut self) {

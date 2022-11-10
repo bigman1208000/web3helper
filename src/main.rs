@@ -1,42 +1,4 @@
-pub mod utils;
-use std::process::exit;
 
-pub use utils::*;
-use web3::types::H160;
-use web3_rust_wrapper::Web3Manager;
-
-#[tokio::main]
-async fn main() -> web3::Result<()> {
-    dotenv::dotenv().ok();
-
-    let (
-        account_puk,
-        account_prk,
-        router_address,
-        token_address,
-        invest_amount,
-        max_slipage,
-        stop_loss,
-        take_profit_percent,
-    ) = get_env_variables().await;
-
-    // INITIALIZE Web3Manager
-    let mut web3m: Web3Manager = Web3Manager::new(web3_rust_wrapper::Network::EthereumGoerli).await;
-
-    // INITIALIZE ACCOUNT
-    web3m
-        .load_account(account_puk.as_str(), account_prk.as_str())
-        .await;
-    let account: H160 = web3m.first_loaded_account();
-
-
-    
-    
-
-    Ok(())
-}
-
-/*
 pub mod utils;
 use std::process::exit;
 
@@ -105,7 +67,3 @@ async fn main() -> web3::Result<()> {
 
     Ok(())
 }
-
-
-
-*/

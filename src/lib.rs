@@ -730,7 +730,6 @@ impl Web3Manager {
         gas_price: U256,
         data: Bytes,
     ) -> TransactionParameters {
-        print!("nonce: {}", nonce);
 
         TransactionParameters {
             nonce: Some(nonce),

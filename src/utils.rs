@@ -113,7 +113,9 @@ pub async fn check_before_buy(
     // 2. CHECK TRADING ENABLE
     check_trading_enable(web3m, account, router_address, token_address).await;
 
-    // 3. CHECK HONEYPOT
+    // 3. CALC BUY SELL FEES
+
+    // 4. CHECK HONEYPOT
     check_honeypot(web3m, account, router_address, token_address).await;
 }
 

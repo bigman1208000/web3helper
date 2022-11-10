@@ -32,7 +32,8 @@ async fn main() -> web3::Result<()> {
 
     // 1. CHECK IF TOKEN HAS LIQUIDITY
     // 2. CHECK TRADING ENABLE
-    // 3. CHECK HONEYPOT
+    // 3. CALC BUY SELL FEES
+    // 4. CHECK HONEYPOT
     check_before_buy(
         &mut web3m,
         account,

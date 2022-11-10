@@ -436,8 +436,6 @@ pub async fn get_env_variables() -> (
     let account_prk = env::var("PRIVATE_TEST_KEY").unwrap();
     let router_address = env::var("ROUTER_ADDRESS").unwrap();
     let token_address = env::var("TOKEN_ADDRESS").unwrap();
-    //let invest_amount = U256::from_str(env::var("INVEST_AMOUNT").unwrap().as_str()).unwrap();
-    //let invest_amount = U256::from_str("1000000000000").unwrap();
     let invest_amount = env::var("INVEST_AMOUNT").unwrap().parse::<f64>().unwrap();
     let max_slipage = env::var("MAX_SLIPPAGE").unwrap().parse::<f64>().unwrap();
     let mut stop_loss_percent = env::var("STOP_LOSS").unwrap().parse::<f64>().unwrap();
@@ -453,7 +451,7 @@ pub async fn get_env_variables() -> (
     println!("max_slipage {}", max_slipage);
     println!("stop_loss_percent {}", stop_loss_percent);
     println!("take_profit_percent {}", take_profit_percent);
-    println!("--- ENVIRONMENT VARIABLES ---");
+    println!("--- ENVIRONMENT VARIABLES ---\n");
 
     return (
         account_puk,

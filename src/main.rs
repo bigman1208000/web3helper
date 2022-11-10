@@ -1,6 +1,5 @@
 
 pub mod utils;
-use std::process::exit;
 
 pub use utils::*;
 use web3::types::H160;
@@ -22,7 +21,7 @@ async fn main() -> web3::Result<()> {
     ) = get_env_variables().await;
 
     // INITIALIZE Web3Manager
-    let mut web3m: Web3Manager = Web3Manager::new(web3_rust_wrapper::Network::EthereumGoerli)
+    let mut web3m: Web3Manager = Web3Manager::new(web3_rust_wrapper::Network::BSCTestnet)
     .await;
 
     // INITIALIZE ACCOUNT

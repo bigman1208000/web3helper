@@ -134,6 +134,7 @@ pub struct EVMNetwork {
 pub enum Network {
     EthereumMainnet = 1,
     EthereumGoerli = 5,
+    EthereumSepolia = 11155111,
     BSCMainnet = 96,
     BSCTestnet = 97,
     AvalancheMainnet = 99,
@@ -154,6 +155,10 @@ impl EVMNetwork {
             Network::EthereumGoerli => {
                 _http_url = "https://goerli.infura.io/v3/d39a866f4f6d49b9916f9269bf880110";
                 _socket_url = "wss://goerli.infura.io/ws/v3/d39a866f4f6d49b9916f9269bf880110";
+            }
+            Network::EthereumSepolia => {
+                _http_url = "https://sepolia.infura.io/v3/d39a866f4f6d49b9916f9269bf880110";
+                _socket_url = "wss://sepolia.infura.io/ws/v3/d39a866f4f6d49b9916f9269bf880110";
             }
             Network::BSCMainnet => {
                 _http_url =

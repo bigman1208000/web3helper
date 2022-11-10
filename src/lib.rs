@@ -35,7 +35,6 @@ use web3::types::{
 };
 use web3::Web3;
 
-
 // use hex_literal::hex;
 
 /// Emulates a `switch` statement.
@@ -125,8 +124,6 @@ pub struct KeyPair {
     pub public_key: String,
 }
 
-
-
 #[derive(Clone, Debug)]
 pub struct EVMNetwork {
     pub http_url: String,
@@ -155,10 +152,8 @@ impl EVMNetwork {
                 _socket_url = "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/ethereum/mainnet/ws";
             }
             Network::EthereumGoerli => {
-                _http_url =
-                    "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/ethereum/goerli";
-                _socket_url =
-                    "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/ethereum/goerli/ws";
+                _http_url = "https://goerli.infura.io/v3/d39a866f4f6d49b9916f9269bf880110";
+                _socket_url = "wss://goerli.infura.io/ws/v3/d39a866f4f6d49b9916f9269bf880110";
             }
             Network::BSCMainnet => {
                 _http_url =
@@ -167,8 +162,7 @@ impl EVMNetwork {
                     "wss://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/bsc/mainnet/ws";
             }
             Network::BSCTestnet => {
-                _http_url =
-                    "https://rpc.ankr.com/bsc_testnet_chapel";
+                _http_url = "https://rpc.ankr.com/bsc_testnet_chapel";
                 _socket_url =
                     "wss://bsc-testnet.nodereal.io/ws/v1/d4224d2458594df5830eb45cdef8b45b";
             }
@@ -204,7 +198,6 @@ fn new_network() {
     println!("{:?}", network);
 }
 
-
 // 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3
 #[derive(Clone, Debug)]
 pub struct Router {
@@ -213,13 +206,8 @@ pub struct Router {
 }
 
 impl Router {
-    pub async fn new(network_id: Network) {
-        
-        
-    }
+    pub async fn new(network_id: Network) {}
 }
-
-
 
 #[derive(Clone, Debug)]
 pub struct Web3Manager {
@@ -600,7 +588,11 @@ impl Web3Manager {
         self
     }
 
-    pub async fn new_from_rpc_url(http_url: &str, websocket_url: &str, u64chain_id: u64) -> Web3Manager {
+    pub async fn new_from_rpc_url(
+        http_url: &str,
+        websocket_url: &str,
+        u64chain_id: u64,
+    ) -> Web3Manager {
         // init web3 http connection
         let web3http: Web3<Http> = web3::Web3::new(web3::transports::Http::new(http_url).unwrap());
 
@@ -634,7 +626,8 @@ impl Web3Manager {
         let network = EVMNetwork::new(network_id);
 
         // init web3 http connection
-        let web3http: Web3<Http> = web3::Web3::new(web3::transports::Http::new(network.http_url.as_str()).unwrap());
+        let web3http: Web3<Http> =
+            web3::Web3::new(web3::transports::Http::new(network.http_url.as_str()).unwrap());
 
         // init web3 ws connection
         let web3web_socket: Web3<WebSocket> = web3::Web3::new(
@@ -713,7 +706,6 @@ impl Web3Manager {
         gas_price: U256,
         data: Bytes,
     ) -> TransactionParameters {
-
         print!("nonce: {}", nonce);
 
         TransactionParameters {
@@ -872,8 +864,6 @@ impl Web3Manager {
             .await;
 
         println!("current_nonce after: {:?}", nonce);
-
-   
 
         return tx_result;
     }

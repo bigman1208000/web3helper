@@ -166,8 +166,7 @@ impl EVMNetwork {
             }
             Network::BSCTestnet => {
                 //_http_url = "https://rpc.ankr.com/bsc_testnet_chapel";
-                //_socket_url =
-                "wss://bsc-testnet.nodereal.io/ws/v1/d4224d2458594df5830eb45cdef8b45b";
+                //_socket_url = "wss://bsc-testnet.nodereal.io/ws/v1/d4224d2458594df5830eb45cdef8b45b";
 
                 _http_url = "https://rpc.ankr.com/bsc_testnet_chapel/8bb975b26860eb14a52028cf0094617967e250459efe5360f1029369b445e6c0";
                 _socket_url =

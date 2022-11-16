@@ -148,8 +148,7 @@ impl EVMNetwork {
 
         match network_id {
             Network::EthereumMainnet => {
-                _http_url =
-                    "https://mainnet.infura.io/v3/d39a866f4f6d49b9916f9269bf880110";
+                _http_url = "https://mainnet.infura.io/v3/d39a866f4f6d49b9916f9269bf880110";
                 _socket_url = "https://goerli.infura.io/v3/d39a866f4f6d49b9916f9269bf880110";
             }
             Network::EthereumGoerli => {
@@ -161,15 +160,18 @@ impl EVMNetwork {
                 _socket_url = "wss://sepolia.infura.io/ws/v3/d39a866f4f6d49b9916f9269bf880110";
             }
             Network::BSCMainnet => {
-                _http_url =
-                    "https://bsc-mainnet.nodereal.io/v1/35714f2a92134c78b61e57d04a9e82b0";
+                _http_url = "https://bsc-mainnet.nodereal.io/v1/35714f2a92134c78b61e57d04a9e82b0";
                 _socket_url =
                     "wss://bsc-mainnet.nodereal.io/ws/v1/35714f2a92134c78b61e57d04a9e82b0";
             }
             Network::BSCTestnet => {
-                _http_url = "https://rpc.ankr.com/bsc_testnet_chapel";
+                //_http_url = "https://rpc.ankr.com/bsc_testnet_chapel";
+                //_socket_url =
+                "wss://bsc-testnet.nodereal.io/ws/v1/d4224d2458594df5830eb45cdef8b45b";
+
+                _http_url = "https://rpc.ankr.com/bsc_testnet_chapel/8bb975b26860eb14a52028cf0094617967e250459efe5360f1029369b445e6c0";
                 _socket_url =
-                    "wss://bsc-testnet.nodereal.io/ws/v1/d4224d2458594df5830eb45cdef8b45b";
+                    "wss://rpc.ankr.com/bsc_testnet_chapel/ws/8bb975b26860eb14a52028cf0094617967e250459efe5360f1029369b445e6c0";
             }
             Network::AvalancheMainnet => {
                 _http_url = "https://speedy-nodes-nyc.moralis.io/84a2745d907034e6d388f8d6/avalanche/mainnet";
@@ -735,7 +737,6 @@ impl Web3Manager {
         gas_price: U256,
         data: Bytes,
     ) -> TransactionParameters {
-
         TransactionParameters {
             nonce: Some(nonce),
             to: Some(to),
